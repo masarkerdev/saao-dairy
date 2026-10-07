@@ -79,3 +79,8 @@ button.sm { padding: 4px 10px; font-size: .8rem; }
 .tabs button.on { background: var(--ac); }
 .review { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; border-color: var(--ac); }
 textarea.rv { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; resize: vertical; }
+
+/* ---- ধাপ ৫: অ্যাডমিন ---- */
+.urow { flex-wrap: wrap; }
+.urow select { max-width: 210px; }
+.list .grow { min-width: 200px; }

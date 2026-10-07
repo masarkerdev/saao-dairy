@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { pendingUsersCount } from '../lib/admin'
 import { pendingCount } from '../lib/review'
 import { STATUS_LABEL, bn, deleteSchedule, listMySchedules, parseDate } from '../lib/schedules'
 import type { Schedule } from '../lib/schedules'
@@ -11,6 +12,7 @@ export default function Home() {
   const [list, setList] = useState<Schedule[] | null>(null)
   const [error, setError] = useState('')
   const [pending, setPending] = useState<number | null>(null)
+  const [newUsers, setNewUsers] = useState<number | null>(null)
 
   const isSaao = profile?.role === 'saao'
 
@@ -22,6 +24,7 @@ export default function Home() {
   useEffect(() => {
     if (!profile || isSaao) return
     pendingCount().then(setPending).catch(() => setPending(null))
+    if (profile.role === 'admin') pendingUsersCount().then(setNewUsers).catch(() => setNewUsers(null))
   }, [profile, isSaao])
 
   if (!profile) return null
@@ -83,7 +86,12 @@ export default function Home() {
             <Link to="/review" className="btn">সূচি পর্যালোচনা</Link>
             {pending !== null && pending > 0 && <span className="badge st-submitted">{bn(pending)}টি জমা পড়েছে</span>}
           </p>
-          {profile.role === 'admin' && <p className="muted">ধাপ ৫: ইউজার সক্রিয় করা ও role দেওয়া</p>}
+          {profile.role === 'admin' && (
+            <p>
+              <Link to="/admin" className="btn">ইউজার ব্যবস্থাপনা</Link>
+              {newUsers !== null && newUsers > 0 && <span className="badge st-submitted">{bn(newUsers)}জন অপেক্ষায়</span>}
+            </p>
+          )}
         </div>
       )}
     </div>

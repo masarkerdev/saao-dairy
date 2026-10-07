@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import RequireAuth from './components/RequireAuth'
 import Home from './pages/Home'
+import Admin from './pages/Admin'
 import Login from './pages/Login'
 import NewSchedule from './pages/NewSchedule'
 import ScheduleEditor from './pages/ScheduleEditor'
@@ -37,6 +38,7 @@ export default function App() {
       <Route path="/schedules/new" element={<RequireAuth roles={['saao']}><NewSchedule /></RequireAuth>} />
       <Route path="/schedules/:id" element={<RequireAuth><ScheduleEditor /></RequireAuth>} />
       <Route path="/review" element={<RequireAuth roles={['approver', 'admin']}><Review /></RequireAuth>} />
+      <Route path="/admin" element={<RequireAuth roles={['admin']}><Admin /></RequireAuth>} />
       <Route path="*" element={<div className="center">পেজ পাওয়া যায়নি</div>} />
     </Routes>
   )

@@ -11,7 +11,8 @@ export default function Signup() {
   const [done, setDone] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  if (session && !done) return <Navigate to="/" replace />
+  // ইমেইল যাচাই বন্ধ থাকলে সাইনআপেই সেশন তৈরি হয়; তখন সরাসরি অ্যাপে যাবে
+  if (session) return <Navigate to="/" replace />
 
   const set = (k: keyof typeof f) => (e: ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
 
