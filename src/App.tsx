@@ -7,15 +7,22 @@ import ScheduleEditor from './pages/ScheduleEditor'
 import Pending from './pages/Pending'
 import Review from './pages/Review'
 import Signup from './pages/Signup'
-import { envMissing } from './lib/supabase'
+import { envMissing, envProblem } from './lib/supabase'
 
 export default function App() {
   if (envMissing) {
+    const reason =
+      envProblem === 'bad_url'
+        ? 'VITE_SUPABASE_URL-এর মান ঠিক নেই। এটি https:// দিয়ে শুরু হতে হবে, যেমন https://xxxx.supabase.co (কোটেশন বা ফাঁকা ছাড়া)।'
+        : envProblem === 'missing_key'
+          ? 'VITE_SUPABASE_ANON_KEY পাওয়া যায়নি।'
+          : 'VITE_SUPABASE_URL পাওয়া যায়নি।'
     return (
       <div className="card auth">
         <h1>কনফিগারেশন বাকি</h1>
-        <p>
-          <code>.env</code> ফাইলে <code>VITE_SUPABASE_URL</code> ও <code>VITE_SUPABASE_ANON_KEY</code> দিন, তারপর ডেভ সার্ভার আবার চালু করুন।
+        <p className="err">{reason}</p>
+        <p className="muted">
+          <code>.env</code> (বা Vercel-এর Environment Variables) ঠিক করে ডেভ সার্ভার আবার চালু করুন, অথবা Vercel-এ Redeploy দিন।
         </p>
       </div>
     )
