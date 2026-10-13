@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { listForReview } from '../lib/review'
 import type { ReviewRow } from '../lib/review'
-import { STATUS_LABEL, bn, fmtDate, parseDate } from '../lib/schedules'
+import { periodRange, toISO, fmtDate } from '../lib/period'
+import { STATUS_LABEL, bn, schedulePeriod } from '../lib/schedules'
 import type { Status } from '../lib/schedules'
 
 type Tab = Status | 'all'
@@ -75,9 +76,9 @@ export default function Review() {
                   <strong>{s.owner?.full_name ?? 'অজানা'}</strong>
                   {s.owner?.block_name ? ` · ${s.owner.block_name} ব্লক` : ''}
                   <div className="muted">
-                    {s.month_label} · {s.fortnight === 1 ? '১ম' : '২য়'} পক্ষ · শুরু {fmtDate(parseDate(s.start_date))}
-                    {s.submitted_at ? ` · জমা ${fmtDate(new Date(s.submitted_at))}` : ''}
-                    {s.owner?.mobile ? ` · ${s.owner.mobile}` : ''}
+                    {s.month_label} · {s.fortnight === 1 ? '১ম' : '২য়'} পক্ষ ({periodRange(schedulePeriod(s))})
+                    {s.submitted_at ? ` · জমা ${fmtDate(toISO(new Date(s.submitted_at)))}` : ''}
+                    {s.owner?.mobile ? ` · ${bn(s.owner.mobile)}` : ''}
                   </div>
                 </Link>
                 <span className={`badge st-${s.status}`}>{STATUS_LABEL[s.status]}</span>

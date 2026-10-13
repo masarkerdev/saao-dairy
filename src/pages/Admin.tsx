@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useFeedback } from '../components/Feedback'
 import { useAuth } from '../lib/auth'
 import { listProfiles, setActive, setRole } from '../lib/admin'
 import type { UserFilter } from '../lib/admin'
@@ -16,6 +17,7 @@ const TABS: { key: UserFilter; label: string }[] = [
 export default function Admin() {
   const { profile: me } = useAuth()
   const isAdmin = me?.role === 'admin'
+  const { confirm, toast } = useFeedback()
   const [tab, setTab] = useState<UserFilter>('pending')
   const [rows, setRows] = useState<Profile[] | null>(null)
   const [error, setError] = useState('')
@@ -53,27 +55,28 @@ export default function Admin() {
 
   async function toggleActive(p: Profile) {
     const next = !p.active
-    if (!next && !confirm(`${p.full_name}-কে নিষ্ক্রিয় করবেন? তিনি আর সূচি তৈরি বা সম্পাদনা করতে পারবেন না।`)) return
+    if (!next && !(await confirm(`${p.full_name}-কে নিষ্ক্রিয় করবেন? তিনি আর সূচি তৈরি বা সম্পাদনা করতে পারবেন না।`, { ok: 'নিষ্ক্রিয় করুন', danger: true }))) return
     setBusyId(p.id)
     try {
       await setActive(p.id, next)
       patch(p.id, { active: next })
+      toast(next ? `${p.full_name} সক্রিয় হয়েছেন` : `${p.full_name} নিষ্ক্রিয় হয়েছেন`)
     } catch (e) {
-      alert(errMsg(e, 'পরিবর্তন করা যায়নি।'))
+      toast(errMsg(e, 'পরিবর্তন করা যায়নি।'), 'err')
     }
     setBusyId(null)
   }
 
   async function changeRole(p: Profile, role: Role) {
     if (role === p.role) return
-    if (role === 'admin' && !confirm(`${p.full_name}-কে উপজেলা কৃষি অফিসার (এডমিন) বানাবেন? এডমিন সূচি অনুমোদন ও সব ইউজার ম্যানেজ করতে পারেন।`)) return
-    if (role === 'coadmin' && !confirm(`${p.full_name}-কে কো-এডমিন বানাবেন? কো-এডমিন সব এসএএও-র সূচি দেখতে ও যাচাই করতে পারেন।`)) return
+    if (role === 'admin' && !(await confirm(`${p.full_name}-কে উপজেলা কৃষি অফিসার (এডমিন) বানাবেন? এডমিন সূচি অনুমোদন ও সব ইউজার ম্যানেজ করতে পারেন।`))) return
+    if (role === 'coadmin' && !(await confirm(`${p.full_name}-কে কো-এডমিন বানাবেন? কো-এডমিন সব এসএএও-র সূচি দেখতে ও যাচাই করতে পারেন।`))) return
     setBusyId(p.id)
     try {
       await setRole(p.id, role)
       patch(p.id, { role })
     } catch (e) {
-      alert(errMsg(e, 'পরিবর্তন করা যায়নি।'))
+      toast(errMsg(e, 'পরিবর্তন করা যায়নি।'), 'err')
     }
     setBusyId(null)
   }

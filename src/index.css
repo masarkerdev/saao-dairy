@@ -1,123 +1,253 @@
+/* পাক্ষিক ভ্রমণসূচী — ধানক্ষেতের সবুজ, সরিষা-হলুদ সতর্কতা, কাগজের মতো হালকা জমিন
+   লেআউট: উপরে অ্যাপ-বার, মাঝে সরু কলাম (মোবাইল আগে), প্রিন্টের ফর্ম পূর্ণ প্রস্থে */
 :root {
-  --bg: #eef1ee; --card: #fff; --ink: #1a1a1a; --muted: #5d665f;
-  --ac: #1b6b3a; --err: #b3261e; --line: #cfd6d0;
+  --bg: #eef1ea; --card: #ffffff; --ink: #1b221c; --muted: #5a665c; --line: #d3dbcf;
+  --ac: #1f6b3a; --ac-ink: #ffffff; --ac-soft: #e3efe4;
+  --warn: #7a5a00; --warn-bg: #fbf1cf; --bad: #9b2c22; --bad-bg: #f8e1dc; --good: #1f6b3a; --good-bg: #dcefdf;
+  --info: #194a7a; --info-bg: #dde9f6; --err: #b3261e;
+  --font: 'Noto Sans Bengali', 'Kalpurush', 'Vrinda', sans-serif;
+  --display: 'Tiro Bangla', 'Noto Serif Bengali', var(--font);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #1c201d; --card: #272c28; --ink: #eee; --muted: #a3ada5; --line: #3d453f; --ac: #3c9a62; }
+  :root:not([data-theme="light"]) {
+    --bg: #161b17; --card: #212822; --ink: #e9eee8; --muted: #a2ada3; --line: #364037;
+    --ac: #4fa36a; --ac-ink: #0e1a11; --ac-soft: #243a2a;
+    --warn: #f0cf6a; --warn-bg: #3a3218; --bad: #f2a194; --bad-bg: #3e2420; --good: #8fd1a0; --good-bg: #1f3526;
+    --info: #9cc3ef; --info-bg: #1d2c3d; --err: #f2a194; color-scheme: dark;
+  }
 }
+:root[data-theme="dark"] {
+  --bg: #161b17; --card: #212822; --ink: #e9eee8; --muted: #a2ada3; --line: #364037;
+  --ac: #4fa36a; --ac-ink: #0e1a11; --ac-soft: #243a2a;
+  --warn: #f0cf6a; --warn-bg: #3a3218; --bad: #f2a194; --bad-bg: #3e2420; --good: #8fd1a0; --good-bg: #1f3526;
+  --info: #9cc3ef; --info-bg: #1d2c3d; --err: #f2a194; color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Noto Sans Bengali', sans-serif; line-height: 1.6; }
-.center { min-height: 60vh; display: grid; place-items: center; }
-.page { max-width: 960px; margin: 0 auto; padding: 16px; }
-.top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
-.auth { max-width: 420px; margin: 8vh auto; }
-h1 { font-size: 1.4rem; margin: 0 0 4px; }
-h2 { font-size: 1.15rem; margin-top: 0; }
-form { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
-label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
-input { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
-button { font: inherit; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--ac); background: var(--ac); color: #fff; cursor: pointer; }
-button.ghost { background: transparent; color: inherit; border-color: var(--line); }
-button:disabled { opacity: .6; cursor: default; }
-.row { display: flex; gap: 10px; flex-wrap: wrap; }
-.muted { color: var(--muted); font-size: .9rem; }
-.err { color: var(--err); margin: 0; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.6; font-size: 16px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.3; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 1.5rem; margin: 0 0 2px; }
+h2 { font-size: 1.1rem; margin: 0 0 8px; }
+h3 { font-size: 1rem; margin: 10px 0 4px; }
 a { color: var(--ac); }
-
-/* ---- ধাপ ৩: তালিকা, ব্যাজ, বাটন ---- */
-select { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
-a.btn { display: inline-block; padding: 8px 14px; border-radius: 8px; background: var(--ac); color: #fff; text-decoration: none; }
-button.sm { padding: 4px 10px; font-size: .8rem; }
-.list { list-style: none; margin: 12px 0 0; padding: 0; }
-.list li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
-.list a.grow { flex: 1; color: inherit; text-decoration: none; }
-.badge { display: inline-block; font-size: .75rem; padding: 2px 9px; border-radius: 999px; background: var(--line); margin-left: 8px; white-space: nowrap; }
-.st-submitted { background: #fff3cd; color: #664d03; }
-.st-approved { background: #d1e7dd; color: #0a3622; }
-.st-returned { background: #f8d7da; color: #58151c; }
-.bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-.note-box { margin-bottom: 10px; border-color: #dc3545; }
+.center { min-height: 60vh; display: grid; place-items: center; padding: 16px; text-align: center; }
+.page { max-width: 960px; margin: 0 auto; padding: 16px; }
+.page.narrow, .narrow { max-width: 760px; margin-inline: auto; }
 .page.wide { max-width: none; }
+.page > * + *, .narrow > .card + .card { margin-top: 12px; }
+.crumb { margin: 0 0 10px; font-size: .9rem; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.err { color: var(--err); margin: 0; }
+.warn-text { color: var(--warn); }
+.danger-text { color: var(--bad) !important; }
 
-/* ---- ফর্ম (শিট) ---- */
+/* কার্ড */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+.auth { max-width: 440px; margin: 6vh auto; }
+.linkcard { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; }
+.linkcard:hover { border-color: var(--ac); }
+
+/* ফর্মের উপাদান: ১৬px যাতে মোবাইলে জুম না হয় */
+form { display: flex; flex-direction: column; gap: 12px; margin: 14px 0; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
+input, select, textarea { font: inherit; font-size: 16px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: inherit; min-width: 0; width: 100%; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+input[aria-invalid="true"] { border-color: var(--err); }
+input[readonly], textarea[readonly] { background: var(--bg); }
+input[type="checkbox"], input[type="radio"] { width: auto; }
+textarea { resize: vertical; }
+button, a.btn { font: inherit; font-size: .95rem; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--ac); background: var(--ac); color: var(--ac-ink); cursor: pointer; text-decoration: none; display: inline-block; text-align: center; }
+button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+button.ghost:hover { border-color: var(--muted); }
+button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+button.sm { padding: 4px 10px; font-size: .82rem; }
+button:disabled { opacity: .55; cursor: default; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row.tight { gap: 4px; align-items: center; }
+.row.between { justify-content: space-between; align-items: center; }
+.row.end { justify-content: flex-end; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
+label.check { flex-direction: row; align-items: flex-start; gap: 10px; }
+label.check input { margin-top: 6px; }
+
+/* অ্যাপ-বার */
+.appbar { background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; }
+.appbar-in { max-width: 960px; margin: 0 auto; padding: 8px 16px; display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+.mark { width: 34px; height: 34px; border-radius: 9px; background: var(--ac); color: var(--ac-ink); display: grid; place-items: center; font-family: var(--display); font-size: 1rem; flex: none; }
+.bname { font-family: var(--display); font-size: 1.05rem; line-height: 1.2; }
+.bsub { font-size: .75rem; color: var(--muted); }
+.who { display: flex; flex-direction: column; text-align: right; line-height: 1.25; }
+.wname { font-size: .85rem; }
+.wrole { font-size: .72rem; color: var(--muted); }
+@media (max-width: 520px) { .who { display: none; } }
+.appnav { max-width: 960px; margin: 0 auto; padding: 0 12px; display: flex; gap: 2px; overflow-x: auto; }
+.appnav a { padding: 8px 10px; font-size: .9rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
+.appnav a.on { color: var(--ac); border-bottom-color: var(--ac); }
+
+/* ব্যাজ ও অবস্থা */
+.badge { display: inline-block; font-size: .75rem; padding: 2px 9px; border-radius: 999px; background: var(--bg); color: var(--muted); margin-left: 8px; white-space: nowrap; border: 1px solid var(--line); }
+.st-draft { background: var(--bg); color: var(--muted); }
+.st-none { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.st-submitted { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.st-forwarded { background: var(--info-bg); color: var(--info); border-color: transparent; }
+.st-approved { background: var(--good-bg); color: var(--good); border-color: transparent; }
+.st-returned { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+
+.steps { list-style: none; padding: 0; margin: 12px 0 8px; display: flex; gap: 6px; flex-wrap: wrap; counter-reset: s; }
+.steps li { display: flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--muted); }
+.steps li + li::before { content: ''; width: 18px; height: 1px; background: var(--line); margin-right: 2px; }
+.steps .dot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: .75rem; background: var(--card); }
+.steps .done .dot { background: var(--good-bg); color: var(--good); border-color: transparent; }
+.steps .now .dot { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+.steps .now { color: var(--ink); font-weight: 600; }
+.steps .back .dot { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+.steps .back { color: var(--bad); font-weight: 600; }
+
+.progress { display: flex; align-items: center; gap: 10px; font-size: .85rem; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.pbar { flex: 1; height: 8px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.pbar span { display: block; height: 100%; background: var(--ac); border-radius: 4px; transition: width .3s; }
+
+/* তালিকা */
+.list { list-style: none; margin: 10px 0 0; padding: 0; }
+.list li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.list .grow { flex: 1; min-width: 180px; color: inherit; text-decoration: none; }
+.list.compact li { padding: 6px 0; }
+.list li.off { opacity: .6; }
+.glist .gnum { width: 1.8em; height: 1.8em; border-radius: 50%; background: var(--ac-soft); color: var(--ac); display: grid; place-items: center; font-size: .8rem; flex: none; }
+.srows .call { font-size: .82rem; color: var(--ac); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-variant-numeric: tabular-nums; }
+
+/* হোম */
+.focus .eyebrow { font-size: .75rem; letter-spacing: .04em; color: var(--ac); font-weight: 600; }
+.focus h1 { font-size: 1.6rem; }
+.note-box { border-color: var(--bad); background: var(--bad-bg); color: var(--ink); gap: 4px; }
+.warn-box { border-color: var(--warn); background: var(--warn-bg); }
+.warn-box ul { margin: 6px 0 10px; padding-left: 20px; }
+.hint-box { border-style: dashed; border-color: var(--ac); background: var(--ac-soft); }
+.running { flex-direction: row; align-items: center; gap: 10px; flex-wrap: wrap; }
+.running > span:nth-child(2) { flex: 1; }
+.pcenter { text-align: center; flex: 1; min-width: 0; }
+.pcenter h1 { font-size: 1.3rem; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 14px; }
+.tile { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.tile b { font-size: 1.6rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tile span { font-size: .8rem; }
+.tile.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.tile.bad { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
+.tile.good { background: var(--good-bg); color: var(--good); border-color: transparent; }
+.tile.sel { outline: 2px solid currentColor; outline-offset: -2px; }
+.quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+
+/* নতুন সূচি */
+.periods { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.periods legend { font-size: .9rem; margin-bottom: 6px; padding: 0; }
+.pcard { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 8px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.pcard.on { border-color: var(--ac); background: var(--ac-soft); }
+.pcard .pt { font-weight: 600; font-size: .95rem; }
+.pcard .muted { width: 100%; padding-left: 24px; }
+.pinfo { display: flex; gap: 16px; flex-wrap: wrap; font-size: .9rem; }
+.pinfo b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.hlist { margin: 0; padding-left: 20px; font-size: .9rem; }
+
+/* সূচির পাতা */
+.head-card .hc-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.head-card .save { align-self: center; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 10px; }
+.tabs button.on { background: var(--ac); color: var(--ac-ink); }
+.review { display: flex; flex-direction: column; gap: 10px; border-color: var(--ac); }
+textarea.rv { font-size: 16px; }
+
+/* তথ্য পূরণ */
+.entry { display: flex; flex-direction: column; gap: 12px; }
+.dcard { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+.dhead { font-size: 1.05rem; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.dhead .badge { margin-left: 0; }
+.gbox { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; scroll-margin-top: 120px; }
+.gbox.warn { border-color: var(--warn); background: var(--warn-bg); }
+.gbox legend { font-weight: 600; font-size: .92rem; padding: 0 4px; display: flex; align-items: center; gap: 6px; }
+.fill-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); display: inline-block; }
+.fill-dot.ok { background: var(--good); border-color: var(--good); }
+.addfg { border: 1px dashed var(--ac); border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--ac-soft); }
+.aicc-in textarea { font-size: 16px; }
+
+.tpick { display: flex; flex-direction: column; gap: 8px; }
+.tlabel { font-size: .9rem; }
+.tchosen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.tchosen li { display: flex; align-items: center; gap: 8px; background: var(--good-bg); border-radius: 8px; padding: 6px 6px 6px 10px; }
+.tchosen .n { color: var(--good); font-variant-numeric: tabular-nums; }
+.tchosen .t { flex: 1; min-width: 0; }
+.tchosen .x { background: transparent; border: 0; color: var(--muted); padding: 2px 8px; font-size: .9rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: .85rem; }
+.chip:hover { border-color: var(--ac); }
+.chip.on { background: var(--ac-soft); color: var(--ac); border-color: var(--ac); }
+.chip.more { border-style: dashed; color: var(--muted); }
+.tcustom { display: flex; gap: 6px; }
+.tcustom input { flex: 1; }
+
+/* সেটিংস ও গ্রুপ */
+.sec h2 { margin-bottom: 4px; }
+.inline-form { flex-direction: row; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+.inline-form input, .inline-form select { flex: 1 1 160px; width: auto; }
+.tform .chips .chip { font-size: .8rem; }
+.gform { margin: 14px 0 6px; }
+
+/* ইতিহাস */
+.hist { list-style: none; padding: 0; margin: 8px 0 0; }
+.hist li { padding: 7px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+.hnote { color: var(--muted); margin-top: 2px; }
+
+/* অ্যাডমিন */
+.urow select { max-width: 260px; width: auto; }
+input[type="search"] { font-size: 16px; }
+
+/* বার্তা ও নিশ্চিতকরণ */
+.dlg-back { position: fixed; inset: 0; background: #0007; display: grid; place-items: center; padding: 16px; z-index: 50; }
+.dlg { background: var(--card); color: var(--ink); border-radius: 14px; padding: 18px; max-width: 420px; width: 100%; border: 1px solid var(--line); }
+.dlg p { margin: 0 0 14px; }
+.toasts { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 60; pointer-events: none; }
+.toast { background: var(--ink); color: var(--card); padding: 10px 16px; border-radius: 10px; max-width: 520px; font-size: .92rem; }
+.toast.err { background: var(--bad); color: #fff; }
+@media (prefers-reduced-motion: no-preference) {
+  .toast, .dlg { animation: pop .18s ease-out; }
+}
+@keyframes pop { from { transform: translateY(6px); opacity: .5; } to { transform: none; opacity: 1; } }
+
+/* ---- ফর্ম (ছবির কাঠামো, প্রিন্ট) ---- */
 .wrap { overflow-x: auto; padding: 4px 0; }
-.sheet { background: #fff; color: #000; width: 277mm; min-width: 277mm; margin: 0 auto 14px; padding: 6mm; box-shadow: 0 1px 6px #0003; }
+.sheet { background: #fff; color: #000; width: 277mm; min-width: 277mm; margin: 0 auto 14px; padding: 6mm; box-shadow: 0 1px 6px #0003; font-family: var(--font); }
 .sheet .top { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; margin-bottom: 3px; }
-.sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+.sheet .top s { text-decoration: line-through; }
+.sheet .top s.keep { text-decoration: none; }
+.sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; line-height: 1.35; }
 .sheet td, .sheet th { border: 1px solid #000; padding: 1px 3px; vertical-align: top; font-weight: 400; }
 .sheet th { text-align: center; vertical-align: middle; font-weight: 600; }
 .sheet .dy { font-weight: 600; }
 .sheet .dy small { display: block; font-weight: 400; }
-.sheet .gl { white-space: nowrap; }
-.sheet .mid { padding: 2mm 3px; }
+.sheet .dy small.hol { font-size: 9.5px; }
+.sheet .mid { padding: 1.6mm 3px; }
+.sheet td.gi { vertical-align: top; font-size: 10.5px; line-height: 1.3; padding: 2px 4px; word-break: break-word; }
+.sheet td.gi .gno { margin-bottom: 2px; }
+.sheet tr.grow5 td.tp { height: var(--lh, 6.6mm); border-top: 0; border-bottom: 0; padding: 0 4px; vertical-align: middle; word-break: break-word; }
+.sheet tr.grow5 td.tp.last { border-bottom: 1px solid #000; }
+.sheet .tn { display: inline-block; min-width: 1.3em; }
+.sheet td.aicc { white-space: pre-wrap; font-size: 10.5px; word-break: break-word; }
 .sheet .note { text-align: center; font-size: 11px; margin-top: 1px; }
 .sheet .sg { display: flex; justify-content: space-between; margin-top: 9mm; font-size: 12px; }
 .sheet .sg > div:last-child { text-align: center; }
+.sheet .who { font-size: 11px; }
+.sheet .appr { font-size: 11px; margin-top: 2px; }
+.print-only { display: none; }
 
 @media print {
   @page { size: A4 landscape; margin: 6mm; }
   body { background: #fff; }
-  .noprint { display: none !important; }
+  .noprint, .appbar { display: none !important; }
+  .print-only { display: block !important; }
   .page, .page.wide { padding: 0; max-width: none; }
   .wrap { overflow: visible; padding: 0; }
-  .sheet { margin: 0; box-shadow: none; width: auto; min-width: 0; padding: 0; page-break-after: always; }
-  .sheet:last-child { page-break-after: auto; }
+  .sheet { margin: 0; box-shadow: none; width: auto; min-width: 0; padding: 0; page-break-after: always; break-after: page; }
+  .sheet:last-child { page-break-after: auto; break-after: auto; }
 }
-
-/* ---- ধাপ ৪: পর্যালোচনা ---- */
-.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; }
-.tabs button.on { background: var(--ac); }
-.review { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; border-color: var(--ac); }
-textarea.rv { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; resize: vertical; }
-
-/* ---- ধাপ ৫: অ্যাডমিন ---- */
-.urow { flex-wrap: wrap; }
-.urow select { max-width: 210px; }
-.list .grow { min-width: 200px; }
-
-/* ---- ধাপ ৬: হোমের সংখ্যা, তথ্য পূরণ, ইতিহাস ---- */
-a.btn.ghost-btn { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
-.stat { display: flex; flex-direction: column; padding: 12px; border-radius: 10px; background: #fff3cd; color: #664d03; text-decoration: none; }
-.stat b { font-size: 1.6rem; line-height: 1.2; }
-.stat span { font-size: .85rem; }
-.stat.dim { background: var(--bg); color: var(--ink); }
-label.check { flex-direction: row; align-items: flex-start; gap: 8px; }
-label.check input { margin-top: 5px; }
-
-.entry { max-width: 760px; margin: 0 auto; }
-.entry h3.wk { margin: 18px 0 8px; font-size: 1.05rem; }
-.dcard { margin-bottom: 12px; display: flex; flex-direction: column; gap: 12px; padding: 14px; }
-.dhead { font-size: 1.05rem; }
-.gbox { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.gbox legend { font-weight: 600; font-size: .9rem; padding: 0 4px; }
-.gbox input, .aicc-in textarea { width: 100%; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-@media (max-width: 520px) { .two { grid-template-columns: 1fr; } }
-.topics { display: flex; flex-direction: column; gap: 6px; }
-.topics .lbl { font-size: .9rem; }
-.trow { display: flex; align-items: center; gap: 6px; }
-.trow span { width: 1.4em; text-align: right; color: var(--muted); }
-.trow input { flex: 1; min-width: 0; padding: 7px 9px; }
-.aicc-in textarea { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; resize: vertical; }
-input[readonly], textarea[readonly] { background: var(--bg); }
-.hist { list-style: none; padding: 0; margin: 8px 0 0; }
-.hist li { padding: 6px 0; border-top: 1px solid var(--line); font-size: .9rem; }
-.hnote { color: var(--muted); margin-top: 2px; }
-.st-forwarded { background: #cfe2ff; color: #052c65; }
-input[type="search"] { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
-
-/* ---- ফর্ম (ছবির কাঠামো) ---- */
-.sheet .top s { text-decoration: line-through; }
-.sheet .top s.keep { text-decoration: none; }
-.sheet td.gi { vertical-align: top; font-size: 10.5px; line-height: 1.35; padding: 2px 4px; word-break: break-word; }
-.sheet td.gi .gno { margin-bottom: 2px; }
-.sheet tr.grow5 td.tp { height: 6.6mm; border-top: 0; border-bottom: 0; padding: 0 4px; vertical-align: middle; word-break: break-word; }
-.sheet tr.grow5 td.tp.last { border-bottom: 1px solid #000; }
-.sheet .tn { display: inline-block; min-width: 1.3em; }
-.sheet td.aicc { white-space: pre-wrap; font-size: 10.5px; word-break: break-word; }
-.sheet .who { font-size: 11px; }
-.sheet .appr { font-size: 11px; margin-top: 2px; }
-.print-only { display: none; }
-@media print { .print-only { display: block !important; } }

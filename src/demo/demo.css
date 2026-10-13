@@ -1,0 +1,23 @@
+/* ডেমো বার: খাতার মার্জিনের মতো হলুদাভ ফিতা, অ্যাপের সবুজের সঙ্গে মানানসই */
+:root { --demo-bg: #fbf3d5; --demo-ink: #4a3b00; --demo-line: #e6d58f; --demo-on: #1b6b3a; --toast-bg: #1f2a22; --toast-ink: #f2f5f2; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --demo-bg: #2d2a1b; --demo-ink: #f0e3a8; --demo-line: #4d4628; --demo-on: #3c9a62; --toast-bg: #e9efe9; --toast-ink: #18201a; }
+}
+:root[data-theme="dark"] { --demo-bg: #2d2a1b; --demo-ink: #f0e3a8; --demo-line: #4d4628; --demo-on: #3c9a62; --toast-bg: #e9efe9; --toast-ink: #18201a; }
+
+.demo-bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--demo-bg); color: var(--demo-ink); border-bottom: 1px solid var(--demo-line); padding: 8px 16px; }
+.demo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; max-width: 960px; margin: 0 auto; }
+.demo-tag { font-weight: 600; font-size: .78rem; letter-spacing: .02em; border: 1px solid var(--demo-line); border-radius: 999px; padding: 1px 10px; }
+.demo-as { font-size: .85rem; }
+.demo-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.demo-btns button { padding: 4px 12px; font-size: .85rem; background: transparent; color: var(--demo-ink); border: 1px solid var(--demo-line); }
+.demo-btns button.on { background: var(--demo-on); border-color: var(--demo-on); color: #fff; }
+.demo-btns button.reset { border-style: dashed; }
+.demo-btns button:focus-visible { outline: 2px solid var(--demo-on); outline-offset: 2px; }
+.demo-hint { max-width: 960px; margin: 6px auto 0; font-size: .85rem; line-height: 1.5; }
+.demo-toasts { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 30; pointer-events: none; }
+.demo-toast { background: var(--toast-bg); color: var(--toast-ink); padding: 10px 16px; border-radius: 10px; max-width: 520px; font-size: .9rem; box-shadow: 0 4px 18px #0004; }
+@media (prefers-reduced-motion: no-preference) { .demo-toast { animation: demo-in .2s ease-out; } }
+@keyframes demo-in { from { transform: translateY(8px); opacity: .4; } to { transform: none; opacity: 1; } }
+
+@media print { .demo-bar { display: none !important; } }

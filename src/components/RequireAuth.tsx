@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import Shell from './Shell'
 import type { Role } from '../types'
 
 interface Props {
@@ -22,5 +23,5 @@ export default function RequireAuth({ children, roles }: Props) {
   }
   if (!profile.active) return <Navigate to="/pending" replace />
   if (roles && !roles.includes(profile.role)) return <Navigate to="/" replace />
-  return <>{children}</>
+  return <Shell>{children}</Shell>
 }
