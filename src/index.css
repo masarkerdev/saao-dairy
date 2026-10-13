@@ -47,20 +47,12 @@ button.sm { padding: 4px 10px; font-size: .8rem; }
 .sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
 .sheet td, .sheet th { border: 1px solid #000; padding: 1px 3px; vertical-align: top; font-weight: 400; }
 .sheet th { text-align: center; vertical-align: middle; font-weight: 600; }
-.sheet td.l { border-top: 0; border-bottom: 0; padding: 0 2px; }
-.sheet td.l.last { border-bottom: 1px solid #000; }
-.sheet .ln { display: flex; align-items: center; height: 7mm; gap: 3px; }
-.sheet .ln b { font-weight: 400; }
-.sheet input.c, .sheet textarea.nt { width: 100%; border: 0; background: transparent; font: inherit; color: #000; outline: 0; padding: 0; border-radius: 0; }
-.sheet input.c { height: 6.5mm; }
-.sheet textarea.nt { height: 100%; min-height: 30mm; resize: none; }
-.sheet input.c:focus, .sheet textarea.nt:focus { background: #fffbd6; }
 .sheet .dy { font-weight: 600; }
 .sheet .dy small { display: block; font-weight: 400; }
 .sheet .gl { white-space: nowrap; }
 .sheet .mid { padding: 2mm 3px; }
 .sheet .note { text-align: center; font-size: 11px; margin-top: 1px; }
-.sheet .sg { display: flex; justify-content: space-between; margin-top: 12mm; font-size: 12px; }
+.sheet .sg { display: flex; justify-content: space-between; margin-top: 9mm; font-size: 12px; }
 .sheet .sg > div:last-child { text-align: center; }
 
 @media print {
@@ -71,7 +63,6 @@ button.sm { padding: 4px 10px; font-size: .8rem; }
   .wrap { overflow: visible; padding: 0; }
   .sheet { margin: 0; box-shadow: none; width: auto; min-width: 0; padding: 0; page-break-after: always; }
   .sheet:last-child { page-break-after: auto; }
-  .sheet input.c:focus, .sheet textarea.nt:focus { background: transparent; }
 }
 
 /* ---- ধাপ ৪: পর্যালোচনা ---- */
@@ -84,3 +75,49 @@ textarea.rv { font: inherit; padding: 9px 10px; border: 1px solid var(--line); b
 .urow { flex-wrap: wrap; }
 .urow select { max-width: 210px; }
 .list .grow { min-width: 200px; }
+
+/* ---- ধাপ ৬: হোমের সংখ্যা, তথ্য পূরণ, ইতিহাস ---- */
+a.btn.ghost-btn { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.stat { display: flex; flex-direction: column; padding: 12px; border-radius: 10px; background: #fff3cd; color: #664d03; text-decoration: none; }
+.stat b { font-size: 1.6rem; line-height: 1.2; }
+.stat span { font-size: .85rem; }
+.stat.dim { background: var(--bg); color: var(--ink); }
+label.check { flex-direction: row; align-items: flex-start; gap: 8px; }
+label.check input { margin-top: 5px; }
+
+.entry { max-width: 760px; margin: 0 auto; }
+.entry h3.wk { margin: 18px 0 8px; font-size: 1.05rem; }
+.dcard { margin-bottom: 12px; display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.dhead { font-size: 1.05rem; }
+.gbox { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gbox legend { font-weight: 600; font-size: .9rem; padding: 0 4px; }
+.gbox input, .aicc-in textarea { width: 100%; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 520px) { .two { grid-template-columns: 1fr; } }
+.topics { display: flex; flex-direction: column; gap: 6px; }
+.topics .lbl { font-size: .9rem; }
+.trow { display: flex; align-items: center; gap: 6px; }
+.trow span { width: 1.4em; text-align: right; color: var(--muted); }
+.trow input { flex: 1; min-width: 0; padding: 7px 9px; }
+.aicc-in textarea { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; resize: vertical; }
+input[readonly], textarea[readonly] { background: var(--bg); }
+.hist { list-style: none; padding: 0; margin: 8px 0 0; }
+.hist li { padding: 6px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+.hnote { color: var(--muted); margin-top: 2px; }
+.st-forwarded { background: #cfe2ff; color: #052c65; }
+input[type="search"] { font: inherit; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; }
+
+/* ---- ফর্ম (ছবির কাঠামো) ---- */
+.sheet .top s { text-decoration: line-through; }
+.sheet .top s.keep { text-decoration: none; }
+.sheet td.gi { vertical-align: top; font-size: 10.5px; line-height: 1.35; padding: 2px 4px; word-break: break-word; }
+.sheet td.gi .gno { margin-bottom: 2px; }
+.sheet tr.grow5 td.tp { height: 6.6mm; border-top: 0; border-bottom: 0; padding: 0 4px; vertical-align: middle; word-break: break-word; }
+.sheet tr.grow5 td.tp.last { border-bottom: 1px solid #000; }
+.sheet .tn { display: inline-block; min-width: 1.3em; }
+.sheet td.aicc { white-space: pre-wrap; font-size: 10.5px; word-break: break-word; }
+.sheet .who { font-size: 11px; }
+.sheet .appr { font-size: 11px; margin-top: 2px; }
+.print-only { display: none; }
+@media print { .print-only { display: block !important; } }

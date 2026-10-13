@@ -35,10 +35,10 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/pending" element={<Pending />} />
       <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
-      <Route path="/schedules/new" element={<RequireAuth roles={['saao']}><NewSchedule /></RequireAuth>} />
+      <Route path="/schedules/new" element={<RequireAuth><NewSchedule /></RequireAuth>} />
       <Route path="/schedules/:id" element={<RequireAuth><ScheduleEditor /></RequireAuth>} />
-      <Route path="/review" element={<RequireAuth roles={['approver', 'admin']}><Review /></RequireAuth>} />
-      <Route path="/admin" element={<RequireAuth roles={['admin']}><Admin /></RequireAuth>} />
+      <Route path="/review" element={<RequireAuth roles={['coadmin', 'admin']}><Review /></RequireAuth>} />
+      <Route path="/admin" element={<RequireAuth roles={['coadmin', 'admin']}><Admin /></RequireAuth>} />
       <Route path="*" element={<div className="center">পেজ পাওয়া যায়নি</div>} />
     </Routes>
   )

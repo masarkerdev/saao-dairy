@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
     if (error) setProfileError(error.message)
-    else if (!data) setProfileError('প্রোফাইল পাওয়া যায়নি। অ্যাডমিনের সঙ্গে যোগাযোগ করুন।')
+    else if (!data) setProfileError('প্রোফাইল পাওয়া যায়নি। উপজেলা কৃষি অফিস বা কো-এডমিনের সঙ্গে যোগাযোগ করুন।')
     else {
       setProfileError(null)
       setProfile(data as Profile)

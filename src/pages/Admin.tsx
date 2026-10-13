@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { listProfiles, setActive, setRole } from '../lib/admin'
 import type { UserFilter } from '../lib/admin'
+import { errMsg } from '../lib/schedules'
 import { ROLE_LABEL } from '../types'
 import type { Profile, Role } from '../types'
 
@@ -14,6 +15,7 @@ const TABS: { key: UserFilter; label: string }[] = [
 
 export default function Admin() {
   const { profile: me } = useAuth()
+  const isAdmin = me?.role === 'admin'
   const [tab, setTab] = useState<UserFilter>('pending')
   const [rows, setRows] = useState<Profile[] | null>(null)
   const [error, setError] = useState('')
@@ -57,20 +59,21 @@ export default function Admin() {
       await setActive(p.id, next)
       patch(p.id, { active: next })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'পরিবর্তন করা যায়নি।')
+      alert(errMsg(e, 'পরিবর্তন করা যায়নি।'))
     }
     setBusyId(null)
   }
 
   async function changeRole(p: Profile, role: Role) {
     if (role === p.role) return
-    if (role === 'admin' && !confirm(`${p.full_name}-কে অ্যাডমিন বানাবেন? অ্যাডমিন সব ইউজার ম্যানেজ করতে পারে।`)) return
+    if (role === 'admin' && !confirm(`${p.full_name}-কে উপজেলা কৃষি অফিসার (এডমিন) বানাবেন? এডমিন সূচি অনুমোদন ও সব ইউজার ম্যানেজ করতে পারেন।`)) return
+    if (role === 'coadmin' && !confirm(`${p.full_name}-কে কো-এডমিন বানাবেন? কো-এডমিন সব এসএএও-র সূচি দেখতে ও যাচাই করতে পারেন।`)) return
     setBusyId(p.id)
     try {
       await setRole(p.id, role)
       patch(p.id, { role })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'পরিবর্তন করা যায়নি।')
+      alert(errMsg(e, 'পরিবর্তন করা যায়নি।'))
     }
     setBusyId(null)
   }
@@ -102,6 +105,8 @@ export default function Admin() {
             {shown.map((p) => {
               const self = p.id === me?.id
               const busy = busyId === p.id
+              // কো-এডমিন এডমিনের একাউন্ট বদলাতে পারেন না
+              const locked = self || (!isAdmin && p.role === 'admin')
               return (
                 <li key={p.id} className="urow">
                   <div className="grow">
@@ -112,14 +117,14 @@ export default function Admin() {
                       {[p.block_name && `${p.block_name} ব্লক`, p.union_name, p.mobile, p.email].filter(Boolean).join(' · ')}
                     </div>
                   </div>
-                  <select value={p.role} disabled={self || busy} onChange={(e) => void changeRole(p, e.target.value as Role)}>
+                  <select value={p.role} disabled={locked || busy} onChange={(e) => void changeRole(p, e.target.value as Role)}>
                     {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
-                      <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+                      <option key={r} value={r} disabled={!isAdmin && r === 'admin'}>{ROLE_LABEL[r]}</option>
                     ))}
                   </select>
                   <button
                     className={p.active ? 'ghost sm' : 'sm'}
-                    disabled={self || busy}
+                    disabled={locked || busy}
                     onClick={() => void toggleActive(p)}
                   >
                     {p.active ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}
@@ -129,7 +134,7 @@ export default function Admin() {
             })}
           </ul>
         )}
-        <p className="muted">নিজের role বা সক্রিয় অবস্থা বদলানো যায় না, যাতে ভুল করে অ্যাডমিন হারিয়ে না যায়।</p>
+        <p className="muted">নিজের role বা সক্রিয় অবস্থা বদলানো যায় না। কো-এডমিন এসএএও ও কো-এডমিন সক্রিয় করতে পারেন; উপজেলা কৃষি অফিসার (এডমিন) role শুধু এডমিন দিতে পারেন।</p>
       </div>
     </div>
   )
