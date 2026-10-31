@@ -55,7 +55,7 @@ function scheduleGroups(sid: string, fgs: Row[], p: Period, holidays: HolidayMap
 
 const P = (id: string, full_name: string, role: string, extra: Row = {}): Row => ({
   id, full_name, role, upazila: 'রাউজান', block_name: null, union_name: null, mobile: null,
-  email: `${id.slice(2)}@demo.bd`, active: true, created_at: '2026-09-01T04:00:00.000Z', ...extra,
+  email: `${id.slice(2)}@demo.bd`, active: true, created_at: '2026-09-01T04:00:00.000Z', designation: 'উপসহকারী কৃষি কর্মকর্তা', ...extra,
 })
 
 const S = (id: string, saao_id: string, start_date: string, fortnight: number, status: string, extra: Row = {}): Row => ({
@@ -73,9 +73,9 @@ export function seed(): Record<string, Row[]> {
   const hol: HolidayMap = { [DEMO_HOLIDAY]: 'নমুনা সরকারি ছুটি' }
 
   const profiles = [
-    P('u_uao', 'মোঃ আবদুল করিম', 'admin', { mobile: '01711000001' }),
-    P('u_aao', 'মাহফুজ আহমেদ সরকার', 'coadmin', { mobile: '01711000002' }),
-    P('u_aeo', 'নাসরিন আক্তার', 'coadmin', { mobile: '01711000003' }),
+    P('u_uao', 'মোঃ আবদুল করিম', 'admin', { mobile: '01711000001', designation: 'উপজেলা কৃষি অফিসার' }),
+    P('u_aao', 'মাহফুজ আহমেদ সরকার', 'coadmin', { mobile: '01711000002', designation: 'অতিরিক্ত কৃষি অফিসার' }),
+    P('u_aeo', 'নাসরিন আক্তার', 'coadmin', { mobile: '01711000003', designation: 'কৃষি সম্প্রসারণ কর্মকর্তা' }),
     P('u_rahim', 'মোঃ রহিম উদ্দিন', 'saao', { block_name: 'নোয়াপাড়া', union_name: 'নোয়াপাড়া', mobile: '01815123456' }),
     P('u_sumi', 'সুমি দাশ', 'saao', { block_name: 'গহিরা', union_name: 'গহিরা', mobile: '01819234567' }),
     P('u_kamal', 'কামাল হোসেন', 'saao', { block_name: 'পাহাড়তলী', union_name: 'পাহাড়তলী', mobile: '01712345678' }),

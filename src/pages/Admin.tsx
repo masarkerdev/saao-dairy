@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth'
 import { listProfiles, setActive, setRole } from '../lib/admin'
 import type { UserFilter } from '../lib/admin'
 import { errMsg } from '../lib/schedules'
-import { ROLE_LABEL } from '../types'
+import { ROLE_LABEL, SAAO_TITLE, suggestedRole } from '../types'
 import type { Profile, Role } from '../types'
 
 const TABS: { key: UserFilter; label: string }[] = [
@@ -116,6 +116,10 @@ export default function Admin() {
                     <strong>{p.full_name}</strong>
                     {self && <span className="badge">আপনি</span>}
                     {!p.active && <span className="badge st-submitted">অপেক্ষমাণ</span>}
+                    {p.designation && p.designation !== SAAO_TITLE && <span className="badge st-forwarded">{p.designation}</span>}
+                    {!self && p.designation && suggestedRole(p.designation) !== p.role && (
+                      <div className="warn-text small">পদবি অনুযায়ী ভূমিকা হওয়া উচিত: {ROLE_LABEL[suggestedRole(p.designation)]}</div>
+                    )}
                     <div className="muted">
                       {[p.block_name && `${p.block_name} ব্লক`, p.union_name, p.mobile, p.email].filter(Boolean).join(' · ')}
                     </div>

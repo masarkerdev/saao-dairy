@@ -8,7 +8,7 @@ type DB = Record<string, Row[]>
 type Err = { message: string; code?: string }
 type Res = { data: any; error: Err | null; count?: number | null }
 
-const KEY = 'saao-demo-db-v2'
+const KEY = 'saao-demo-db-v3'
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
 
 function load(): DB {
@@ -63,6 +63,7 @@ const auth = {
     const p = {
       id: newId('u_'), full_name: d.full_name || 'নামহীন', role: 'saao', upazila: 'রাউজান', block_name: d.block_name || null,
       union_name: d.union_name || null, mobile: d.mobile || null, email, active: false, created_at: new Date().toISOString(),
+      designation: d.designation || 'উপসহকারী কৃষি কর্মকর্তা',
     }
     db.profiles.push(p)
     persist()

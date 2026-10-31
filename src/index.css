@@ -44,7 +44,7 @@ a { color: var(--ac); }
 
 /* কার্ড */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
-.auth { max-width: 440px; margin: 6vh auto; }
+.auth { max-width: 440px; width: calc(100% - 32px); margin: 6vh auto; }
 .linkcard { display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; }
 .linkcard:hover { border-color: var(--ac); }
 

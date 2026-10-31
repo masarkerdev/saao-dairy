@@ -6,10 +6,11 @@ import { useAuth } from '../lib/auth'
 import { listLocations } from '../lib/catalog'
 import type { Location } from '../lib/catalog'
 import { mobileError, normalizeMobile } from '../lib/mobile'
+import { DESIGNATIONS, SAAO_TITLE } from '../types'
 
 export default function Signup() {
   const { session } = useAuth()
-  const [f, setF] = useState({ full_name: '', block_name: '', union_name: '', mobile: '', email: '', password: '' })
+  const [f, setF] = useState({ designation: SAAO_TITLE, full_name: '', block_name: '', union_name: '', mobile: '', email: '', password: '' })
   const [locs, setLocs] = useState<Location[]>([])
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
@@ -26,11 +27,12 @@ export default function Signup() {
   const blocks = locs.filter((l) => l.kind === 'block')
   const unions = locs.filter((l) => l.kind === 'union')
   const mErr = f.mobile ? mobileError(f.mobile) : null
+  const isSaao = f.designation === SAAO_TITLE
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
-    if (!f.block_name.trim()) return setError('ব্লক বাছুন বা লিখুন।')
+    if (isSaao && !f.block_name.trim()) return setError('ব্লক বাছুন বা লিখুন।')
     if (mobileError(f.mobile) || !f.mobile.trim()) return setError('সঠিক মোবাইল নম্বর দিন (১১ অঙ্ক, ০১ দিয়ে শুরু)।')
     if (f.password.length < 8) return setError('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।')
     setBusy(true)
@@ -41,8 +43,9 @@ export default function Signup() {
         emailRedirectTo: window.location.origin,
         data: {
           full_name: f.full_name.trim(),
-          block_name: f.block_name.trim(),
-          union_name: f.union_name.trim(),
+          designation: f.designation,
+          block_name: isSaao ? f.block_name.trim() : '',
+          union_name: isSaao ? f.union_name.trim() : '',
           mobile: normalizeMobile(f.mobile),
         },
       },
@@ -56,7 +59,9 @@ export default function Signup() {
     return (
       <div className="card auth">
         <h1>একাউন্ট তৈরি হয়েছে</h1>
-        <p>এখন লগইন করুন। কো-এডমিন (অতিরিক্ত কৃষি অফিসার বা কৃষি সম্প্রসারণ কর্মকর্তা) একাউন্ট সক্রিয় করার পর আপনি সূচি তৈরি করতে পারবেন।</p>
+        <p>{isSaao
+          ? 'এখন লগইন করুন। কো-এডমিন (অতিরিক্ত কৃষি অফিসার বা কৃষি সম্প্রসারণ কর্মকর্তা) একাউন্ট সক্রিয় করার পর আপনি সূচি তৈরি করতে পারবেন।'
+          : 'এখন লগইন করুন। উপজেলার এডমিন আপনার পদবি দেখে ভূমিকা দিয়ে একাউন্ট সক্রিয় করবেন।'}</p>
         <Link to="/login">লগইন পেজে যান</Link>
       </div>
     )
@@ -65,10 +70,14 @@ export default function Signup() {
   return (
     <div className="card auth">
       <h1>নতুন একাউন্ট</h1>
-      <p className="muted">উপসহকারী কৃষি কর্মকর্তা</p>
       <form onSubmit={onSubmit}>
+        <label>পদবি
+          <select value={f.designation} onChange={set('designation')}>
+            {DESIGNATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </label>
         <label>পূর্ণ নাম<input required autoComplete="name" value={f.full_name} onChange={set('full_name')} /></label>
-        <div className="two">
+        {isSaao && <div className="two">
           <label>ব্লক
             {blocks.length ? (
               <select required value={f.block_name} onChange={set('block_name')}>
@@ -89,7 +98,8 @@ export default function Signup() {
               <input value={f.union_name} onChange={set('union_name')} />
             )}
           </label>
-        </div>
+        </div>}
+        {!isSaao && <p className="muted small" style={{ margin: 0 }}>উপজেলা পর্যায়ের কর্মকর্তাদের ব্লক বা ইউনিয়ন লাগে না। ভূমিকা (এডমিন বা কো-এডমিন) উপজেলা থেকে যাচাই করে দেওয়া হবে।</p>}
         <label>মোবাইল নম্বর
           <input type="tel" inputMode="tel" required autoComplete="tel" value={f.mobile} aria-invalid={!!mErr} onChange={set('mobile')} placeholder="০১৭১১২২৩৩৪৪" />
         </label>
