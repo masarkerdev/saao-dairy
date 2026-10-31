@@ -1,156 +1,156 @@
-import { WEEKDAYS, dayKind, dow, fmtDate } from '../lib/period'
+import { useLayoutEffect, useRef } from 'react'
+import { WEEKDAYS, bn, dayKind, dow, fmtDate, toISO } from '../lib/period'
 import type { HolidayMap } from '../lib/period'
-import { g2 } from '../lib/schedules'
-import type { GroupMap, NoteMap } from '../lib/schedules'
+import type { PokkhoPage } from '../lib/month'
+import { displayNumbers, g2 } from '../lib/schedules'
 
-// ছবির ফর্মের কাঠামো: শুধু দেখানো ও প্রিন্টের জন্য। সারি = পক্ষের প্রতিটি তারিখ।
+// ছবির ফর্মের কাঠামো, এক পাতায় এক পক্ষ। শুধু দেখানো, প্রিন্ট ও PDF-এর জন্য।
+// পাতার মাপ: A4 আড়াআড়ি, চারদিকে ৮ মিমি মার্জিন → লেখার জায়গা ২৮১ × ১৯৪ মিমি।
+export const SHEET_W_MM = 281
+export const SHEET_H_MM = 194
+const MM = 96 / 25.4 // ১ মিমি = কত পিক্সেল
+
 interface Props {
-  label: string // "১ম সপ্তাহ" / "২য় সপ্তাহ"
-  dates: string[]
-  month: string
-  fortnight: 1 | 2
+  page: PokkhoPage
+  monthName: string
   holidays: HolidayMap
-  groups: GroupMap
-  displayNo: Record<number, number>
-  notes: NoteMap
   signer: string[]
-  approvedNote?: string
 }
 
-const LINES = [0, 1, 2, 3, 4]
 const SUNDAY_WORK = 'কৃষক সভা, প্রকল্প কাজ, প্রদর্শনী স্থাপন ও অন্যান্য কাজ'
+const TOPIC_NO = ['১', '২', '৩', '৪', '৫']
 
-export default function ScheduleSheet(p: Props) {
+export default function ScheduleSheet({ page, monthName, holidays, signer }: Props) {
+  const ref = useRef<HTMLDivElement>(null)
+  const displayNo = displayNumbers(page.groups)
+  const s = page.schedule
+  const approvedNote = s?.status === 'approved' && s.approved_at ? `অনলাইনে অনুমোদিত: ${fmtDate(toISO(new Date(s.approved_at)))}` : ''
+
+  // লেখা বেশি হলে আকার ছোট করে এক পাতায় আনা (১১px থেকে ৭px পর্যন্ত)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const limit = SHEET_H_MM * MM - 2
+    let fs = 11
+    el.style.setProperty('--fs', `${fs}px`)
+    while (el.scrollHeight > limit && fs > 7) {
+      fs -= 0.25
+      el.style.setProperty('--fs', `${fs}px`)
+    }
+  })
+
   // কোন তারিখে কোন গ্রুপ (সকাল/দুপুর)
   const at: Record<string, { 1?: number; 2?: number }> = {}
-  for (const [k, g] of Object.entries(p.groups)) {
+  for (const [k, g] of Object.entries(page.groups)) {
     if (!g.visit_date || !g.slot) continue
     at[g.visit_date] = { ...(at[g.visit_date] ?? {}), [g.slot]: Number(k) }
   }
-  const groupDays = p.dates.filter((d) => at[d])
-  // ভিজিটের দিন বেশি হলে লাইনের উচ্চতা কমিয়ে এক পৃষ্ঠায় রাখা
-  const other = p.dates.length - groupDays.length
-  const lh = Math.max(4.2, Math.min(6.6, (150 - other * 7.5) / Math.max(1, groupDays.length * 5)))
 
-  const dayCell = (d: string, rowSpan?: number) => (
-    <td className="dy" rowSpan={rowSpan}>
+  const dayCell = (d: string) => (
+    <td className="dy">
       <b>{WEEKDAYS[dow(d)]}</b>
       <small>{fmtDate(d)}</small>
-      {p.holidays[d] && at[d] && <small className="hol">({p.holidays[d]})</small>}
+      {holidays[d] && at[d] && <small className="hol">({holidays[d]})</small>}
     </td>
   )
 
   const info = (no?: number) => {
-    const g = no ? p.groups[no] : undefined
+    const g = no ? page.groups[no] : undefined
+    if (!no) return <td className="gi" />
     return (
-      <td rowSpan={5} className="gi">
-        {no && g && (g.group_name || g.address || g.mobile) ? (
-          <>
-            <div className="gno">গ্রুপ নং -{g2(p.displayNo[no] ?? no)}</div>
-            {g.group_name && <div>{g.group_name}</div>}
-            {g.address && <div>{g.address}</div>}
-            {g.mobile && <div>মোবাইল: {g.mobile.replace(/\d/g, (x) => '০১২৩৪৫৬৭৮৯'[Number(x)])}</div>}
-          </>
-        ) : no ? <div className="gno">গ্রুপ নং -{g2(p.displayNo[no] ?? no)}</div> : null}
+      <td className="gi">
+        <div className="gno">গ্রুপ নং -{g2(displayNo[no] ?? no)}</div>
+        {g?.group_name && <div>{g.group_name}</div>}
+        {g?.address && <div>{g.address}</div>}
+        {g?.mobile && <div>মোবাইল: {bn(g.mobile)}</div>}
       </td>
     )
   }
 
-  const topic = (no: number | undefined, l: number) => (
-    <td className={'tp' + (l === 4 ? ' last' : '')}>
-      <span className="tn">{'১২৩৪৫'[l]}।</span> {no ? p.groups[no]?.topics[l] ?? '' : ''}
+  const topics = (no?: number) => (
+    <td className="tp">
+      {no !== undefined && TOPIC_NO.map((n, i) => (
+        <div key={n} className="tl"><span className="tn">{n}।</span>{page.groups[no]?.topics[i] ?? ''}</div>
+      ))}
     </td>
   )
 
-  const groupRows = (d: string) => {
-    const a = at[d]?.[1]
-    const b = at[d]?.[2]
-    return LINES.map((l) => (
-      <tr key={`${d}-${l}`} className="grow5">
-        {l === 0 && dayCell(d, 5)}
-        {l === 0 && info(a)}
-        {topic(a, l)}
-        {l === 0 && info(b)}
-        {topic(b, l)}
-        {l === 0 && <td rowSpan={5} className="aicc">{p.notes[d] ?? ''}</td>}
-      </tr>
-    ))
-  }
-
-  const full = (d: string, text: string) => (
-    <tr key={d}>
-      {dayCell(d)}
-      <td colSpan={5} className="mid">{text}</td>
-    </tr>
-  )
-
-  const weekend = (d: string) => (
-    <tr key={d}>
-      {dayCell(d)}
-      <td>সাপ্তাহিক ছুটি</td>
-      <td /><td /><td /><td />
-    </tr>
-  )
-
   const row = (d: string) => {
-    if (at[d]) return groupRows(d)
-    switch (dayKind(d, p.holidays)) {
-      case 'holiday': return full(d, `সরকারি ছুটি (${p.holidays[d]})`)
-      case 'meeting': return full(d, 'উপজেলা অফিসে সাপ্তাহিক সভা')
-      case 'weekend': return weekend(d)
-      case 'sunday': return full(d, SUNDAY_WORK)
-      default: return full(d, 'মাঠ পরিদর্শন ও অন্যান্য কাজ')
+    if (at[d]) {
+      const a = at[d][1]
+      const b = at[d][2]
+      return (
+        <tr key={d} className="grp">
+          {dayCell(d)}
+          {info(a)}
+          {topics(a ?? (b !== undefined ? -1 : undefined))}
+          {info(b)}
+          {topics(b ?? (a !== undefined ? -1 : undefined))}
+          <td className="aicc">{page.notes[d] ?? ''}</td>
+        </tr>
+      )
+    }
+    const full = (text: string) => (
+      <tr key={d}>{dayCell(d)}<td colSpan={5} className="mid">{text}</td></tr>
+    )
+    switch (dayKind(d, holidays)) {
+      case 'holiday': return full(`সরকারি ছুটি (${holidays[d]})`)
+      case 'meeting': return full('উপজেলা অফিসে সাপ্তাহিক সভা')
+      case 'sunday': return full(SUNDAY_WORK)
+      case 'weekend':
+        return <tr key={d}>{dayCell(d)}<td>সাপ্তাহিক ছুটি</td><td /><td /><td /><td /></tr>
+      default: return full('মাঠ পরিদর্শন ও অন্যান্য কাজ')
     }
   }
 
+  const f = page.period.fortnight
   return (
-    <div className="sheet" style={{ ['--lh' as string]: `${lh.toFixed(2)}mm` }}>
-      <div className="top">
-        <span>উপসহকারী কৃষি কর্মকর্তাগণের পাক্ষিক ভ্রমণসূচী</span>
-        <span>মাসের নামঃ {p.month}</span>
-        <span>
-          পক্ষঃ <s className={p.fortnight === 1 ? 'keep' : ''}>১ম পক্ষ</s>/{' '}
-          <s className={p.fortnight === 2 ? 'keep' : ''}>২য় পক্ষ</s>
-        </span>
-      </div>
-      <table>
-        <colgroup>
-          <col style={{ width: '9%' }} />
-          <col style={{ width: '14%' }} />
-          <col style={{ width: '23%' }} />
-          <col style={{ width: '14%' }} />
-          <col style={{ width: '23%' }} />
-          <col style={{ width: '17%' }} />
-        </colgroup>
-        <tbody>
-          <tr>
-            <th rowSpan={3}>বার ও তারিখ</th>
-            <th colSpan={5}>{p.label}</th>
-          </tr>
-          <tr>
-            <th rowSpan={2}>কৃষক গ্রুপের নম্বর, নাম ঠিকানা ও মোবাইল নম্বর</th>
-            <th>৯.০০-১১.৩০</th>
-            <th rowSpan={2}>কৃষক গ্রুপের নম্বর, নাম ঠিকানা ও মোবাইল নম্বর</th>
-            <th>১২.৩০-৩.০০</th>
-            <th>৩.০০-৫.০০</th>
-          </tr>
-          <tr>
-            <th>কৃষক গ্রুপে আলোচ্য বিষয়</th>
-            <th>কৃষক গ্রুপে আলোচ্য বিষয়</th>
-            <th>কৃষি তথ্য ও পরামর্শ কেন্দ্র</th>
-          </tr>
-          {p.dates.map(row)}
-        </tbody>
-      </table>
-      <div className="note">নামাজ ও মধ্যাহ্ন বিরতিসহ</div>
-      <div className="sg">
-        <div>
-          অনুমোদনকারী কর্মকর্তার স্বাক্ষর ও সীল
-          {p.approvedNote && <div className="appr">{p.approvedNote}</div>}
+    <div className="paper">
+      <div className="sheet" ref={ref}>
+        <div className="top">
+          <span>উপসহকারী কৃষি কর্মকর্তাগণের পাক্ষিক ভ্রমণসূচী</span>
+          <span>মাসের নামঃ {monthName}</span>
+          <span>পক্ষঃ <s className={f === 1 ? 'keep' : ''}>১ম পক্ষ</s>/ <s className={f === 2 ? 'keep' : ''}>২য় পক্ষ</s></span>
         </div>
-        <div>
-          দাখিলকারী এসএএও এর স্বাক্ষর ও সীল
-          {p.signer.map((s) => <div key={s} className="who">{s}</div>)}
+        <table>
+          <colgroup>
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '23%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '23%' }} />
+            <col style={{ width: '17%' }} />
+          </colgroup>
+          <tbody>
+            <tr>
+              <th rowSpan={3}>বার ও তারিখ</th>
+              <th colSpan={5}>{page.label}</th>
+            </tr>
+            <tr>
+              <th rowSpan={2}>কৃষক গ্রুপের নম্বর, নাম ঠিকানা ও মোবাইল নম্বর</th>
+              <th>৯.০০-১১.৩০</th>
+              <th rowSpan={2}>কৃষক গ্রুপের নম্বর, নাম ঠিকানা ও মোবাইল নম্বর</th>
+              <th>১২.৩০-৩.০০</th>
+              <th>৩.০০-৫.০০</th>
+            </tr>
+            <tr>
+              <th>কৃষক গ্রুপে আলোচ্য বিষয়</th>
+              <th>কৃষক গ্রুপে আলোচ্য বিষয়</th>
+              <th>কৃষি তথ্য ও পরামর্শ কেন্দ্র</th>
+            </tr>
+            {page.dates.map(row)}
+          </tbody>
+        </table>
+        <div className="note">নামাজ ও মধ্যাহ্ন বিরতিসহ</div>
+        <div className="sg">
+          <div>
+            অনুমোদনকারী কর্মকর্তার স্বাক্ষর ও সীল
+            {approvedNote && <div className="appr">{approvedNote}</div>}
+          </div>
+          <div>
+            দাখিলকারী এসএএও এর স্বাক্ষর ও সীল
+            {signer.map((x) => <div key={x} className="sgn">{x}</div>)}
+          </div>
         </div>
       </div>
     </div>

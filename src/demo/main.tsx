@@ -5,11 +5,31 @@ import App from '../App'
 import ErrorBoundary from '../components/ErrorBoundary'
 import { FeedbackProvider, useFeedback } from '../components/Feedback'
 import { AuthProvider } from '../lib/auth'
+import { setFileSaver } from '../lib/download'
 import { setTodayForDemo } from '../lib/period'
 import { demoAuth, resetDemo, supabase } from './mockSupabase'
 
 // নমুনা তথ্য অক্টোবর ২০২৬-এর; ডেমোতে "আজ" ১৩ অক্টোবর ধরা হয়
 setTodayForDemo('2026-10-13')
+
+// ডেমো claude.ai-এর ভেতরে চলে, সেখানে সাধারণ ডাউনলোড বন্ধ; তাই পেজের ডাউনলোড-অনুমতি দিয়ে ফাইল দেওয়া হয়
+type Saver = { save: (r: { filename: string; data: Blob }) => Promise<unknown> }
+setFileSaver(async (blob, filename) => {
+  const c = (window as unknown as { claude?: { use: (n: string) => Promise<Saver | null> } }).claude
+  const dl = c?.use ? await c.use('downloads') : null
+  if (dl) {
+    await dl.save({ filename, data: blob })
+    return
+  }
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 5000)
+})
 
 const PERSONAS = [
   {

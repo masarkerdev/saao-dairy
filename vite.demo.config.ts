@@ -26,7 +26,7 @@ export default defineConfig({
     lib: { entry: resolve(__dirname, 'src/demo/main.tsx'), formats: ['iife'], name: 'SaaoDemo', fileName: () => 'demo.js' },
     rollupOptions: {
       external: ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
-      output: { globals: { react: 'React', 'react-dom': 'ReactDOM', 'react-dom/client': 'ReactDOM', 'react-router-dom': 'ReactRouterDOM' } },
+      output: { inlineDynamicImports: true, globals: { react: 'React', 'react-dom': 'ReactDOM', 'react-dom/client': 'ReactDOM', 'react-router-dom': 'ReactRouterDOM' } },
     },
   },
 })

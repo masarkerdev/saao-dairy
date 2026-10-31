@@ -8,7 +8,10 @@ import { useAuth } from '../lib/auth'
 import { holidayMap, listFarmerGroups, listHolidays, listTopics, saveFarmerGroup, topicsForMonth } from '../lib/catalog'
 import type { FarmerGroup } from '../lib/catalog'
 import { mobileError } from '../lib/mobile'
-import { badPlace, bn, fmtDate, periodEnd, periodRange, periodStart, periodTitle, splitWeeks, toISO } from '../lib/period'
+import { badPlace, bn, periodEnd, periodRange, periodStart, periodTitle } from '../lib/period'
+import { fileBase, saveBlob } from '../lib/download'
+import { loadMonth, signerLines } from '../lib/month'
+import type { MonthData } from '../lib/month'
 import type { HolidayMap } from '../lib/period'
 import {
   GROUP_COUNT, STATUS_LABEL, changeStatus, displayNumbers, emptyGroup, errMsg, filledCount, fmtTs, groupOrder, isFilled,
@@ -42,6 +45,9 @@ export default function ScheduleEditor() {
   const [view, setView] = useState<'entry' | 'sheet'>('entry')
   const [reviewNote, setReviewNote] = useState('')
   const [busy, setBusy] = useState(false)
+  const [month, setMonth] = useState<MonthData | null>(null)
+  const [exporting, setExporting] = useState<'' | 'pdf' | 'docx'>('')
+  const sheetsRef = useRef<HTMLDivElement>(null)
 
   const groupsRef = useRef<GroupMap>({})
   const notesRef = useRef<NoteMap>({})
@@ -214,11 +220,61 @@ export default function ScheduleEditor() {
     window.setTimeout(() => document.getElementById(`g-${no}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
   }
 
+  // মাসের দুই পক্ষ (এই সূচির সর্বশেষ লেখাসহ) লোড
+  const refreshMonth = useCallback(async () => {
+    if (!data) return null
+    const p = schedulePeriod(data.schedule)
+    const m = await loadMonth(data.schedule.saao_id, p.year, p.month, { schedule: data.schedule, groups: groupsRef.current, notes: notesRef.current })
+    setMonth(m)
+    return m
+  }, [data])
+
+  useEffect(() => {
+    if (view === 'sheet') void refreshMonth()
+  }, [view, refreshMonth])
+
+  // পর্দার এই পক্ষের পাতাটি সবসময় সর্বশেষ লেখা দেখায়
+  const monthView = useMemo(() => {
+    if (!month || !data) return null
+    return { ...month, pages: month.pages.map((pg) => pg.schedule?.id === data.schedule.id ? { ...pg, schedule: data.schedule, groups, notes } : pg) as MonthData['pages'] }
+  }, [month, data, groups, notes])
+
+  const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+
+  async function showSheets() {
+    await flush()
+    setView('sheet')
+    const m = await refreshMonth()
+    await nextFrame()
+    await nextFrame()
+    return m
+  }
+
   function print() {
-    void flush().then(() => {
-      setView('sheet')
-      window.setTimeout(() => window.print(), 80)
-    })
+    void showSheets().then(() => window.print())
+  }
+
+  async function download(kind: 'pdf' | 'docx') {
+    setExporting(kind)
+    try {
+      const m = await showSheets()
+      if (!m) throw new Error('তথ্য লোড হয়নি')
+      const name = fileBase(m.monthName, m.year, m.owner?.full_name)
+      if (kind === 'pdf') {
+        const { sheetsToPdf } = await import('../lib/exportPdf')
+        const els = Array.from(sheetsRef.current?.querySelectorAll<HTMLElement>('.sheet') ?? [])
+        if (els.length !== 2) throw new Error('ফর্ম এখনো তৈরি হয়নি, আবার চেষ্টা করুন')
+        await saveBlob(await sheetsToPdf(els), `${name}.pdf`)
+      } else {
+        const { monthToDocx } = await import('../lib/exportDocx')
+        const live = { ...m, pages: m.pages.map((pg) => pg.schedule?.id === data?.schedule.id ? { ...pg, groups: groupsRef.current, notes: notesRef.current } : pg) as MonthData['pages'] }
+        await saveBlob(await monthToDocx(live, signerLines(m.owner)), `${name}.docx`)
+      }
+      toast(kind === 'pdf' ? 'PDF তৈরি হয়েছে' : 'Word ফাইল তৈরি হয়েছে')
+    } catch (e) {
+      toast(errMsg(e, 'ফাইল তৈরি করা যায়নি।'), 'err')
+    }
+    setExporting('')
   }
 
   async function act(to: Status, from: Status[], question: string, needNote = false) {
@@ -258,13 +314,9 @@ export default function ScheduleEditor() {
   if (status === 'error' || !data || !s || !profile || !period) return <div className="center err">সূচি লোড করা যায়নি। পেজ রিফ্রেশ করুন।</div>
 
   const owner = data.owner
-  const signer = owner
-    ? [owner.full_name, ['উপসহকারী কৃষি কর্মকর্তা', owner.block_name && `${owner.block_name} ব্লক`, owner.upazila].filter(Boolean).join(', ')]
-    : []
-  const approvedNote = s.status === 'approved' && s.approved_at ? `অনলাইনে অনুমোদিত: ${fmtDate(toISO(new Date(s.approved_at)))}` : undefined
+  const signer = signerLines(owner)
   const canForward = profile.role === 'coadmin' && !own && s.status === 'submitted'
   const canDecide = profile.role === 'admin' && (s.status === 'submitted' || s.status === 'forwarded')
-  const [w1, w2] = splitWeeks(period)
 
   return (
     <div className="page wide">
@@ -288,7 +340,9 @@ export default function ScheduleEditor() {
             {editable && firstIncomplete && (
               <button type="button" className="ghost" onClick={() => jump(firstIncomplete)}>বাকি গ্রুপে যান</button>
             )}
-            <button type="button" className="ghost" onClick={print}>প্রিন্ট / PDF</button>
+            <button type="button" className="ghost" disabled={!!exporting} onClick={() => void download('pdf')}>{exporting === 'pdf' ? 'PDF তৈরি হচ্ছে…' : 'PDF ডাউনলোড'}</button>
+            <button type="button" className="ghost" disabled={!!exporting} onClick={() => void download('docx')}>{exporting === 'docx' ? 'Word তৈরি হচ্ছে…' : 'Word ডাউনলোড'}</button>
+            <button type="button" className="ghost" onClick={print}>প্রিন্ট</button>
             {editable && (
               <button type="button" disabled={busy} onClick={() => void act('submitted', ['draft', 'returned'], 'জমা দিলে কো-এডমিনের কাছে যাবে এবং আর সম্পাদনা করা যাবে না। জমা দেবেন?')}>
                 জমা দিন
@@ -373,11 +427,17 @@ export default function ScheduleEditor() {
         </div>
       )}
 
-      <div className={view === 'sheet' ? 'wrap' : 'wrap print-only'}>
-        {([[w1, '১ম সপ্তাহ'], [w2, '২য় সপ্তাহ']] as const).map(([dates, label]) => (
-          <ScheduleSheet key={label} label={label} dates={[...dates]} month={s.month_label} fortnight={s.fortnight}
-            holidays={holidays} groups={groups} displayNo={displayNo} notes={notes} signer={signer} approvedNote={approvedNote} />
-        ))}
+      {view === 'sheet' && (
+        <p className="noprint narrow muted small" style={{ marginTop: 0 }}>
+          পুরো মাস: ১ম পাতা ১ম পক্ষ, ২য় পাতা ২য় পক্ষ। যে পক্ষের সূচি এখনো তৈরি হয়নি সেটি খালি ফর্ম হিসেবে আসে।
+        </p>
+      )}
+      <div ref={sheetsRef} className={view === 'sheet' ? 'wrap' : 'wrap print-only'}>
+        {monthView
+          ? monthView.pages.map((pg) => (
+            <ScheduleSheet key={pg.label} page={pg} monthName={monthView.monthName} holidays={monthView.holidays} signer={signer} />
+          ))
+          : view === 'sheet' && <p className="center">ফর্ম তৈরি হচ্ছে…</p>}
       </div>
 
       {events.length > 0 && (
