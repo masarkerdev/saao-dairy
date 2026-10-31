@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
+import AuthLayout, { Field } from '../components/AuthLayout'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 
@@ -20,29 +21,24 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     setBusy(false)
     if (error) {
-      setError(
-        error.message.includes('Email not confirmed')
-          ? 'ইমেইল এখনো যাচাই হয়নি। ইনবক্সের লিংকে ক্লিক করুন।'
-          : 'ইমেইল বা পাসওয়ার্ড ভুল।',
-      )
+      setError(error.message.includes('Email not confirmed')
+        ? 'ইমেইল এখনো যাচাই হয়নি। ইনবক্সের লিংকে ক্লিক করুন।'
+        : 'ইমেইল বা পাসওয়ার্ড মেলেনি। আবার দেখে লিখুন।')
     }
   }
 
   return (
-    <div className="card auth">
-      <h1>পাক্ষিক ভ্রমণসূচী</h1>
-      <p className="muted">উপসহকারী কৃষি কর্মকর্তা — লগইন</p>
-      <form onSubmit={onSubmit}>
-        <label>ইমেইল
-          <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label>পাসওয়ার্ড
-          <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
-        {error && <p className="err">{error}</p>}
-        <button disabled={busy}>{busy ? 'অপেক্ষা করুন…' : 'লগইন'}</button>
+    <AuthLayout title="লগইন করুন" subtitle="আপনার ইমেইল ও পাসওয়ার্ড দিন">
+      <form onSubmit={onSubmit} className="auth-form">
+        <Field label="ইমেইল" icon="mail" type="email" required autoComplete="email" placeholder="name@example.com"
+          value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label="পাসওয়ার্ড" icon="lock" type="password" required autoComplete="current-password"
+          value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error && <p className="form-err" role="alert">{error}</p>}
+        <button className="btn-lg" disabled={busy}>{busy ? 'অপেক্ষা করুন…' : 'লগইন'}</button>
       </form>
-      <p className="muted">একাউন্ট নেই? <Link to="/signup">নতুন একাউন্ট খুলুন</Link></p>
-    </div>
+      <p className="auth-alt">একাউন্ট নেই? <Link to="/signup">নতুন একাউন্ট খুলুন</Link></p>
+      <p className="muted small">পাসওয়ার্ড ভুলে গেলে আপনার কো-এডমিন বা উপজেলা কৃষি অফিসকে জানান।</p>
+    </AuthLayout>
   )
 }

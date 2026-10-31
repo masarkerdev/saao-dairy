@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
+import AuthLayout, { Field } from '../components/AuthLayout'
+import Icon from '../components/Icon'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import { listLocations } from '../lib/catalog'
@@ -8,12 +10,18 @@ import type { Location } from '../lib/catalog'
 import { mobileError, normalizeMobile } from '../lib/mobile'
 import { DESIGNATIONS, SAAO_TITLE } from '../types'
 
+const DESIG_NOTE: Record<string, string> = {
+  [SAAO_TITLE]: 'নিজের ব্লকের পাক্ষিক সূচি তৈরি ও জমা',
+  'উপজেলা কৃষি অফিসার': 'সূচি অনুমোদন, সব ইউজার',
+  'অতিরিক্ত কৃষি অফিসার': 'সূচি যাচাই ও পাঠানো',
+  'কৃষি সম্প্রসারণ কর্মকর্তা': 'সূচি যাচাই ও পাঠানো',
+}
+
 export default function Signup() {
   const { session } = useAuth()
   const [f, setF] = useState({ designation: SAAO_TITLE, full_name: '', block_name: '', union_name: '', mobile: '', email: '', password: '' })
   const [locs, setLocs] = useState<Location[]>([])
   const [error, setError] = useState('')
-  const [done, setDone] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -23,17 +31,18 @@ export default function Signup() {
   // ইমেইল যাচাই বন্ধ থাকলে সাইনআপেই সেশন তৈরি হয়; তখন সরাসরি অ্যাপে যাবে
   if (session) return <Navigate to="/" replace />
 
-  const set = (k: keyof typeof f) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value })
+  const set = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }))
   const blocks = locs.filter((l) => l.kind === 'block')
   const unions = locs.filter((l) => l.kind === 'union')
-  const mErr = f.mobile ? mobileError(f.mobile) : null
   const isSaao = f.designation === SAAO_TITLE
+  const mErr = f.mobile ? mobileError(f.mobile) : null
+  const pwShort = f.password.length > 0 && f.password.length < 8
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
     if (isSaao && !f.block_name.trim()) return setError('ব্লক বাছুন বা লিখুন।')
-    if (mobileError(f.mobile) || !f.mobile.trim()) return setError('সঠিক মোবাইল নম্বর দিন (১১ অঙ্ক, ০১ দিয়ে শুরু)।')
+    if (!f.mobile.trim() || mobileError(f.mobile)) return setError('সঠিক মোবাইল নম্বর দিন (১১ অঙ্ক, ০১ দিয়ে শুরু)।')
     if (f.password.length < 8) return setError('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।')
     setBusy(true)
     const { error } = await supabase.auth.signUp({
@@ -52,64 +61,66 @@ export default function Signup() {
     })
     setBusy(false)
     if (error) setError(error.message.includes('already') ? 'এই ইমেইলে আগেই একাউন্ট আছে। লগইন করুন।' : error.message)
-    else setDone(true)
-  }
-
-  if (done) {
-    return (
-      <div className="card auth">
-        <h1>একাউন্ট তৈরি হয়েছে</h1>
-        <p>{isSaao
-          ? 'এখন লগইন করুন। কো-এডমিন (অতিরিক্ত কৃষি অফিসার বা কৃষি সম্প্রসারণ কর্মকর্তা) একাউন্ট সক্রিয় করার পর আপনি সূচি তৈরি করতে পারবেন।'
-          : 'এখন লগইন করুন। উপজেলার এডমিন আপনার পদবি দেখে ভূমিকা দিয়ে একাউন্ট সক্রিয় করবেন।'}</p>
-        <Link to="/login">লগইন পেজে যান</Link>
-      </div>
-    )
   }
 
   return (
-    <div className="card auth">
-      <h1>নতুন একাউন্ট</h1>
-      <form onSubmit={onSubmit}>
-        <label>পদবি
-          <select value={f.designation} onChange={set('designation')}>
-            {DESIGNATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </label>
-        <label>পূর্ণ নাম<input required autoComplete="name" value={f.full_name} onChange={set('full_name')} /></label>
-        {isSaao && <div className="two">
-          <label>ব্লক
-            {blocks.length ? (
-              <select required value={f.block_name} onChange={set('block_name')}>
-                <option value="">বাছুন</option>
-                {blocks.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
-              </select>
-            ) : (
-              <input required value={f.block_name} onChange={set('block_name')} />
-            )}
-          </label>
-          <label>ইউনিয়ন
-            {unions.length ? (
-              <select value={f.union_name} onChange={set('union_name')}>
-                <option value="">বাছুন</option>
-                {unions.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
-              </select>
-            ) : (
-              <input value={f.union_name} onChange={set('union_name')} />
-            )}
-          </label>
-        </div>}
-        {!isSaao && <p className="muted small" style={{ margin: 0 }}>উপজেলা পর্যায়ের কর্মকর্তাদের ব্লক বা ইউনিয়ন লাগে না। ভূমিকা (এডমিন বা কো-এডমিন) উপজেলা থেকে যাচাই করে দেওয়া হবে।</p>}
-        <label>মোবাইল নম্বর
-          <input type="tel" inputMode="tel" required autoComplete="tel" value={f.mobile} aria-invalid={!!mErr} onChange={set('mobile')} placeholder="০১৭১১২২৩৩৪৪" />
-        </label>
-        {mErr && <p className="err small">{mErr}</p>}
-        <label>ইমেইল<input type="email" required autoComplete="email" value={f.email} onChange={set('email')} /></label>
-        <label>পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)<input type="password" required autoComplete="new-password" value={f.password} onChange={set('password')} /></label>
-        {error && <p className="err">{error}</p>}
-        <button disabled={busy}>{busy ? 'অপেক্ষা করুন…' : 'একাউন্ট খুলুন'}</button>
+    <AuthLayout title="নতুন একাউন্ট" subtitle="একাউন্ট খোলার পর উপজেলা থেকে যাচাই করে সক্রিয় করা হবে">
+      <form onSubmit={onSubmit} className="auth-form">
+        <fieldset className="desig">
+          <legend className="flabel">আপনার পদবি</legend>
+          {DESIGNATIONS.map((d) => (
+            <label key={d} className={'dcard-opt' + (f.designation === d ? ' on' : '')}>
+              <input type="radio" name="designation" value={d} checked={f.designation === d} onChange={() => set('designation')(d)} />
+              <span className="dt">{d}</span>
+              <span className="dn">{DESIG_NOTE[d]}</span>
+              {f.designation === d && <Icon name="check" size={18} className="dcheck" />}
+            </label>
+          ))}
+        </fieldset>
+
+        <div className="fsection">আপনার পরিচয়</div>
+        <Field label="পূর্ণ নাম" icon="user" required autoComplete="name" value={f.full_name} onChange={(e) => set('full_name')(e.target.value)} />
+        {isSaao && (
+          <div className="two">
+            <label className="field">
+              <span className="flabel">ব্লক</span>
+              {blocks.length ? (
+                <select required value={f.block_name} onChange={(e) => set('block_name')(e.target.value)}>
+                  <option value="">বাছুন</option>
+                  {blocks.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+                </select>
+              ) : (
+                <span className="finput"><Icon name="map" size={18} /><input required value={f.block_name} onChange={(e) => set('block_name')(e.target.value)} /></span>
+              )}
+            </label>
+            <label className="field">
+              <span className="flabel">ইউনিয়ন</span>
+              {unions.length ? (
+                <select value={f.union_name} onChange={(e) => set('union_name')(e.target.value)}>
+                  <option value="">বাছুন</option>
+                  {unions.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
+                </select>
+              ) : (
+                <span className="finput"><input value={f.union_name} onChange={(e) => set('union_name')(e.target.value)} /></span>
+              )}
+            </label>
+          </div>
+        )}
+        {!isSaao && <p className="note-soft">উপজেলা পর্যায়ের কর্মকর্তাদের ব্লক বা ইউনিয়ন লাগে না। ভূমিকা (এডমিন বা কো-এডমিন) উপজেলা থেকে যাচাই করে দেওয়া হবে।</p>}
+        <Field label="মোবাইল নম্বর" icon="phone" type="tel" inputMode="tel" required autoComplete="tel" placeholder="০১৭১১২২৩৩৪৪"
+          value={f.mobile} error={mErr} onChange={(e) => set('mobile')(e.target.value)} />
+
+        <div className="fsection">লগইনের তথ্য</div>
+        <Field label="ইমেইল" icon="mail" type="email" required autoComplete="email" placeholder="name@example.com"
+          value={f.email} onChange={(e) => set('email')(e.target.value)} />
+        <Field label="পাসওয়ার্ড" icon="lock" type="password" required autoComplete="new-password"
+          hint="কমপক্ষে ৮ অক্ষর" error={pwShort ? 'আরও লিখুন, কমপক্ষে ৮ অক্ষর লাগবে' : null}
+          value={f.password} onChange={(e) => set('password')(e.target.value)} />
+
+        {error && <p className="form-err" role="alert">{error}</p>}
+        <button className="btn-lg" disabled={busy}>{busy ? 'অপেক্ষা করুন…' : 'একাউন্ট খুলুন'}</button>
       </form>
-      <p className="muted">একাউন্ট আছে? <Link to="/login">লগইন</Link></p>
-    </div>
+      <p className="auth-alt">একাউন্ট আছে? <Link to="/login">লগইন করুন</Link></p>
+    </AuthLayout>
   )
 }

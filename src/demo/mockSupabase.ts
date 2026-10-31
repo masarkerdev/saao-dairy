@@ -71,6 +71,7 @@ const auth = {
     return delay({ data: { session: session() }, error: null })
   },
   async signOut() { demoAuth.signInAs(null); return delay({ error: null }) },
+  async updateUser(_u: { password?: string }) { return delay({ data: { user: session()?.user ?? null }, error: uid ? null : { message: 'লগইন করা নেই' } }) },
 }
 
 // ---- নিয়ম (RLS ও ট্রিগার নকল) ----

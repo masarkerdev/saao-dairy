@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFeedback } from '../components/Feedback'
+import Icon, { Avatar } from '../components/Icon'
 import StatusSteps from '../components/StatusSteps'
 import { pendingUsersCount } from '../lib/admin'
 import { useAuth } from '../lib/auth'
@@ -14,6 +15,25 @@ import type { Period } from '../lib/period'
 import { GROUP_COUNT, STATUS_SHORT, countFilled, deleteSchedule, errMsg, listMySchedules, schedulePeriod } from '../lib/schedules'
 import type { Schedule } from '../lib/schedules'
 import { isReviewer } from '../types'
+
+function greet() {
+  const h = new Date().getHours()
+  return h < 12 ? 'শুভ সকাল' : h < 17 ? 'শুভ অপরাহ্ন' : 'শুভ সন্ধ্যা'
+}
+
+// পূরণের অগ্রগতি: গোল রিং
+function Ring({ value, total }: { value: number; total: number }) {
+  const r = 30, c = 2 * Math.PI * r, pct = total ? Math.min(1, value / total) : 0
+  return (
+    <div className="ring" role="img" aria-label={`${bn(value)}/${bn(total)} গ্রুপ পূরণ`}>
+      <svg width="76" height="76" viewBox="0 0 76 76">
+        <circle cx="38" cy="38" r={r} className="ring-bg" />
+        <circle cx="38" cy="38" r={r} className="ring-fg" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
+      </svg>
+      <span><b>{bn(value)}</b>/{bn(total)}</span>
+    </div>
+  )
+}
 
 function Deadline({ p, daysBefore, done }: { p: Period; daysBefore: number; done: boolean }) {
   const today = todayISO()
@@ -68,14 +88,30 @@ function SaaoHome() {
   }
 
   const fc = current ? filled[current.id] : undefined
+  const editable = current && (current.status === 'draft' || current.status === 'returned')
+  const newLink = `/schedules/new?p=${focus.year}-${focus.month}-${focus.fortnight}`
 
   return (
-    <div className="page narrow">
+    <div className="page narrow home">
+      <section className="hero">
+        <div className="hero-top">
+          <Avatar name={profile.full_name} size={48} />
+          <div>
+            <div className="hero-hi">{greet()},</div>
+            <div className="hero-name">{profile.full_name}</div>
+            <div className="hero-sub">{profile.block_name ? `${profile.block_name} ব্লক · ` : ''}{profile.upazila} · আজ {fmtDayMonth(today)}</div>
+          </div>
+        </div>
+      </section>
+
       {returned.map((s) => (
-        <Link key={s.id} to={`/schedules/${s.id}`} className="card note-box linkcard">
-          <strong>{periodTitle(schedulePeriod(s))} সংশোধনের জন্য ফেরত এসেছে</strong>
-          {s.approver_note && <div>“{s.approver_note}”</div>}
-          <span className="small">খুলে ঠিক করুন, তারপর আবার জমা দিন →</span>
+        <Link key={s.id} to={`/schedules/${s.id}`} className="card note-box linkcard alert-card">
+          <Icon name="alert" size={22} />
+          <div>
+            <strong>{periodTitle(schedulePeriod(s))} সংশোধনের জন্য ফেরত এসেছে</strong>
+            {s.approver_note && <div>“{s.approver_note}”</div>}
+            <span className="small">খুলে ঠিক করুন, তারপর আবার জমা দিন →</span>
+          </div>
         </Link>
       ))}
 
@@ -87,67 +123,69 @@ function SaaoHome() {
       )}
 
       <section className="card focus">
-        <div className="eyebrow">পরের পক্ষ</div>
-        <h1>{periodTitle(focus)}</h1>
-        <div className="muted">{periodRange(focus)}</div>
+        <div className="focus-row">
+          <div className="focus-text">
+            <div className="eyebrow">পরের পক্ষ</div>
+            <h1>{periodTitle(focus)}</h1>
+            <div className="muted">{periodRange(focus)}</div>
+          </div>
+          {current && fc !== undefined && <Ring value={fc} total={GROUP_COUNT} />}
+          {list && !current && <div className="focus-empty"><Icon name="calendarPlus" size={30} /></div>}
+        </div>
         {list === null ? (
           <p className="muted">লোড হচ্ছে…</p>
         ) : current ? (
           <>
             <StatusSteps status={current.status} />
-            {fc !== undefined && (
-              <div className="progress">
-                <div className="pbar"><span style={{ width: `${(fc / GROUP_COUNT) * 100}%` }} /></div>
-                <span>{bn(fc)}/১২ গ্রুপ পূরণ</span>
-              </div>
-            )}
-            <Deadline p={focus} daysBefore={daysBefore} done={current.status !== 'draft' && current.status !== 'returned'} />
-            <div className="row" style={{ marginTop: 10 }}>
-              <Link to={`/schedules/${current.id}`} className="btn">
-                {current.status === 'draft' || current.status === 'returned'
-                  ? fc !== undefined && fc < GROUP_COUNT ? `বাকি ${bn(GROUP_COUNT - fc)}টি গ্রুপ পূরণ করুন` : 'সূচি খুলুন'
-                  : 'সূচি দেখুন'}
-              </Link>
-            </div>
+            <Deadline p={focus} daysBefore={daysBefore} done={!editable} />
+            <Link to={`/schedules/${current.id}`} className="btn btn-lg focus-cta">
+              {editable
+                ? fc !== undefined && fc < GROUP_COUNT ? `বাকি ${bn(GROUP_COUNT - fc)}টি গ্রুপ পূরণ করুন` : 'সূচি খুলুন'
+                : 'সূচি দেখুন'}
+              <Icon name="right" size={18} />
+            </Link>
           </>
         ) : (
           <>
-            <p>এই পক্ষের সূচি এখনো তৈরি হয়নি।</p>
+            <p style={{ margin: '10px 0 4px' }}>এই পক্ষের সূচি এখনো তৈরি হয়নি।</p>
             <Deadline p={focus} daysBefore={daysBefore} done={false} />
-            <div className="row" style={{ marginTop: 10 }}>
-              <Link to={`/schedules/new?p=${focus.year}-${focus.month}-${focus.fortnight}`} className="btn">সূচি তৈরি করুন</Link>
-            </div>
+            <Link to={newLink} className="btn btn-lg focus-cta">সূচি তৈরি করুন <Icon name="right" size={18} /></Link>
           </>
         )}
       </section>
 
-      {running && (
-        <Link to={`/schedules/${running.id}`} className="card linkcard running">
-          <span className="muted small">চলতি পক্ষ · {periodRange(schedulePeriod(running))}</span>
-          <span>{periodTitle(schedulePeriod(running))}</span>
-          <span className={`badge st-${running.status}`}>{STATUS_SHORT[running.status]}</span>
-        </Link>
-      )}
+      <div className="qa">
+        <Link to={newLink} className="qa-item"><span className="qa-ico"><Icon name="calendarPlus" /></span><span>নতুন সূচি</span></Link>
+        <Link to="/groups" className="qa-item"><span className="qa-ico"><Icon name="groups" /></span><span>আমার গ্রুপ{groupCount ? ` (${bn(groupCount)})` : ''}</span></Link>
+        {running
+          ? <Link to={`/schedules/${running.id}`} className="qa-item"><span className="qa-ico"><Icon name="calendar" /></span><span>চলতি পক্ষ</span></Link>
+          : <Link to="/profile" className="qa-item"><span className="qa-ico"><Icon name="user" /></span><span>প্রোফাইল</span></Link>}
+      </div>
 
-      <section className="card">
-        <div className="row between">
-          <h2 style={{ margin: 0 }}>সব সূচি</h2>
-          <Link to="/groups" className="small">আমার কৃষক গ্রুপ{groupCount ? ` (${bn(groupCount)})` : ''} →</Link>
-        </div>
-        {list && list.length === 0 && <p className="muted">এখনো কোনো সূচি নেই।</p>}
+      <section>
+        <h2 className="sec-title">সব সূচি</h2>
+        {list && list.length === 0 && <div className="card empty"><Icon name="file" size={28} /><span>এখনো কোনো সূচি নেই।</span></div>}
         {list && list.length > 0 && (
-          <ul className="list">
-            {list.map((s) => (
-              <li key={s.id}>
-                <Link to={`/schedules/${s.id}`} className="grow">
-                  <strong>{periodTitle(schedulePeriod(s))}</strong>
-                  <div className="muted small">{periodRange(schedulePeriod(s))}</div>
-                </Link>
-                <span className={`badge st-${s.status}`}>{STATUS_SHORT[s.status]}</span>
-                {s.status === 'draft' && <button type="button" className="ghost sm" onClick={() => void remove(s)}>মুছুন</button>}
-              </li>
-            ))}
-          </ul>
+          <div className="sched-list">
+            {list.map((s) => {
+              const p = schedulePeriod(s)
+              return (
+                <div key={s.id} className={`sched-card bar-${s.status}`}>
+                  <Link to={`/schedules/${s.id}`} className="sc-main">
+                    <span className="sc-date"><b>{p.fortnight === 1 ? '১ম' : '২য়'}</b><small>পক্ষ</small></span>
+                    <span className="grow">
+                      <strong>{periodTitle(p)}</strong>
+                      <span className="muted small">{periodRange(p)}</span>
+                    </span>
+                    <span className={`badge st-${s.status}`}>{STATUS_SHORT[s.status]}</span>
+                  </Link>
+                  {s.status === 'draft' && (
+                    <button type="button" className="icon-btn" aria-label="খসড়া মুছুন" onClick={() => void remove(s)}><Icon name="trash" size={18} /></button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
       </section>
     </div>
@@ -196,14 +234,25 @@ function ReviewerHome() {
 
   return (
     <div className="page narrow">
+      <section className="hero hero-rev">
+        <div className="hero-top">
+          {profile && <Avatar name={profile.full_name} size={48} />}
+          <div>
+            <div className="hero-hi">{greet()},</div>
+            <div className="hero-name">{profile?.full_name}</div>
+            <div className="hero-sub">{profile?.designation ?? ''}{profile?.designation ? ' · ' : ''}{profile?.upazila}{newUsers ? ` · ${bn(newUsers)}জন নতুন সাইনআপ অপেক্ষায়` : ''}</div>
+          </div>
+        </div>
+      </section>
+
       <section className="card">
         <div className="row between">
-          <button type="button" className="ghost sm" aria-label="আগের পক্ষ" onClick={() => setPeriod(prevPeriod(period))}>←</button>
+          <button type="button" className="ghost sm" aria-label="আগের পক্ষ" onClick={() => setPeriod(prevPeriod(period))}><Icon name="left" size={18} /></button>
           <div className="pcenter">
             <h1>{periodTitle(period)}</h1>
             <div className="muted small">{periodRange(period)} · <Deadline p={period} daysBefore={daysBefore} done={false} /></div>
           </div>
-          <button type="button" className="ghost sm" aria-label="পরের পক্ষ" onClick={() => setPeriod(nextPeriod(period))}>→</button>
+          <button type="button" className="ghost sm" aria-label="পরের পক্ষ" onClick={() => setPeriod(nextPeriod(period))}><Icon name="right" size={18} /></button>
         </div>
 
         <div className="tiles">
@@ -226,17 +275,23 @@ function ReviewerHome() {
               {shown.map((r) => (
                 <li key={r.profile.id}>
                   {r.schedule ? (
-                    <Link to={`/schedules/${r.schedule.id}`} className="grow">
+                    <Link to={`/schedules/${r.schedule.id}`} className="grow who-cell">
+                      <Avatar name={r.profile.full_name} size={34} />
+                      <span>
                       <strong>{r.profile.full_name}</strong>
                       <div className="muted small">{r.profile.block_name ? `${r.profile.block_name} ব্লক · ` : ''}{bn(r.filled)}/১২ গ্রুপ</div>
+                      </span>
                     </Link>
                   ) : (
-                    <div className="grow">
+                    <div className="grow who-cell">
+                      <Avatar name={r.profile.full_name} size={34} />
+                      <span>
                       <strong>{r.profile.full_name}</strong>
                       <div className="muted small">{r.profile.block_name ? `${r.profile.block_name} ব্লক` : ''}</div>
+                      </span>
                     </div>
                   )}
-                  {r.profile.mobile && <a className="call" href={`tel:${r.profile.mobile}`} aria-label={`${r.profile.full_name}-কে ফোন`}>{bn(r.profile.mobile)}</a>}
+                  {r.profile.mobile && <a className="call" href={`tel:${r.profile.mobile}`} aria-label={`${r.profile.full_name}-কে ফোন`}><Icon name="phone" size={16} /><span>{bn(r.profile.mobile)}</span></a>}
                   <span className={`badge st-${r.state}`}>{STATE_LABEL[r.state]}</span>
                 </li>
               ))}
@@ -246,9 +301,9 @@ function ReviewerHome() {
       </section>
 
       <div className="quick">
-        <Link to="/review" className="card linkcard"><strong>সূচি পর্যালোচনা</strong><span className="muted small">সব পক্ষের জমা পড়া সূচি</span></Link>
-        <Link to="/admin" className="card linkcard"><strong>ইউজার</strong><span className="muted small">{newUsers ? `${bn(newUsers)}জন নতুন সাইনআপ সক্রিয়ের অপেক্ষায়` : 'সাইনআপ সক্রিয় করা, ভূমিকা দেওয়া'}</span></Link>
-        <Link to="/settings" className="card linkcard"><strong>সেটিংস</strong><span className="muted small">সরকারি ছুটি, আলোচ্য বিষয়, ব্লক</span></Link>
+        <Link to="/review" className="card linkcard"><Icon name="review" className="qi" /><strong>সূচি পর্যালোচনা</strong><span className="muted small">সব পক্ষের জমা পড়া সূচি</span></Link>
+        <Link to="/admin" className="card linkcard"><Icon name="groups" className="qi" /><strong>ইউজার</strong><span className="muted small">{newUsers ? `${bn(newUsers)}জন নতুন সাইনআপ সক্রিয়ের অপেক্ষায়` : 'সাইনআপ সক্রিয় করা, ভূমিকা দেওয়া'}</span></Link>
+        <Link to="/settings" className="card linkcard"><Icon name="settings" className="qi" /><strong>সেটিংস</strong><span className="muted small">সরকারি ছুটি, আলোচ্য বিষয়, ব্লক</span></Link>
       </div>
     </div>
   )

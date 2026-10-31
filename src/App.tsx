@@ -3,6 +3,7 @@ import RequireAuth from './components/RequireAuth'
 import Home from './pages/Home'
 import Admin from './pages/Admin'
 import Groups from './pages/Groups'
+import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import NewSchedule from './pages/NewSchedule'
@@ -42,6 +43,7 @@ export default function App() {
       <Route path="/review" element={<RequireAuth roles={['coadmin', 'admin']}><Review /></RequireAuth>} />
       <Route path="/admin" element={<RequireAuth roles={['coadmin', 'admin']}><Admin /></RequireAuth>} />
       <Route path="/groups" element={<RequireAuth><Groups /></RequireAuth>} />
+      <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth roles={['coadmin', 'admin']}><Settings /></RequireAuth>} />
       <Route path="*" element={<div className="center">পেজ পাওয়া যায়নি</div>} />
     </Routes>
