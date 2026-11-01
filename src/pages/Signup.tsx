@@ -12,7 +12,7 @@ import { DESIGNATIONS, SAAO_TITLE } from '../types'
 
 const DESIG_NOTE: Record<string, string> = {
   [SAAO_TITLE]: 'নিজের ব্লকের পাক্ষিক সূচি তৈরি ও জমা',
-  'উপজেলা কৃষি অফিসার': 'সূচি অনুমোদন, সব ইউজার',
+  'উপজেলা কৃষি অফিসার': 'সূচি অনুমোদন, এসএএও সক্রিয় করা',
   'অতিরিক্ত কৃষি অফিসার': 'সূচি যাচাই ও পাঠানো',
   'কৃষি সম্প্রসারণ কর্মকর্তা': 'সূচি যাচাই ও পাঠানো',
 }
@@ -106,7 +106,7 @@ export default function Signup() {
             </label>
           </div>
         )}
-        {!isSaao && <p className="note-soft">উপজেলা পর্যায়ের কর্মকর্তাদের ব্লক বা ইউনিয়ন লাগে না। ভূমিকা (এডমিন বা কো-এডমিন) উপজেলা থেকে যাচাই করে দেওয়া হবে।</p>}
+        {!isSaao && <p className="note-soft">উপজেলা পর্যায়ের কর্মকর্তাদের ব্লক বা ইউনিয়ন লাগে না। ডেভেলপার আপনার পদবি যাচাই করে ভূমিকা (এডমিন বা কো-এডমিন) দিয়ে সক্রিয় করবেন।</p>}
         <Field label="মোবাইল নম্বর" icon="phone" type="tel" inputMode="tel" required autoComplete="tel" placeholder="০১৭১১২২৩৩৪৪"
           value={f.mobile} error={mErr} onChange={(e) => set('mobile')(e.target.value)} />
 

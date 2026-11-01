@@ -41,7 +41,7 @@ export default function App() {
       <Route path="/schedules/new" element={<RequireAuth><NewSchedule /></RequireAuth>} />
       <Route path="/schedules/:id" element={<RequireAuth><ScheduleEditor /></RequireAuth>} />
       <Route path="/review" element={<RequireAuth roles={['coadmin', 'admin']}><Review /></RequireAuth>} />
-      <Route path="/admin" element={<RequireAuth roles={['coadmin', 'admin']}><Admin /></RequireAuth>} />
+      <Route path="/admin" element={<RequireAuth roles={['coadmin', 'admin', 'developer']}><Admin /></RequireAuth>} />
       <Route path="/groups" element={<RequireAuth><Groups /></RequireAuth>} />
       <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth roles={['coadmin', 'admin']}><Settings /></RequireAuth>} />

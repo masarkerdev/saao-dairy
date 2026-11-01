@@ -14,7 +14,8 @@ import {
 import type { Period } from '../lib/period'
 import { GROUP_COUNT, STATUS_SHORT, countFilled, deleteSchedule, errMsg, listMySchedules, schedulePeriod } from '../lib/schedules'
 import type { Schedule } from '../lib/schedules'
-import { isReviewer } from '../types'
+import Admin from './Admin'
+import { isDeveloper, isReviewer } from '../types'
 
 function greet() {
   const h = new Date().getHours()
@@ -211,7 +212,7 @@ function ReviewerHome() {
     periodOverview(period).then(setRows).catch(() => setRows([]))
   }, [period])
   useEffect(() => {
-    pendingUsersCount().then(setNewUsers).catch(() => setNewUsers(null))
+    pendingUsersCount('saao').then(setNewUsers).catch(() => setNewUsers(null))
     getSubmitDaysBefore().then(setDaysBefore).catch(() => undefined)
   }, [])
 
@@ -312,5 +313,6 @@ function ReviewerHome() {
 export default function Home() {
   const { profile } = useAuth()
   if (!profile) return null
+  if (isDeveloper(profile.role)) return <Admin />
   return isReviewer(profile.role) ? <ReviewerHome /> : <SaaoHome />
 }

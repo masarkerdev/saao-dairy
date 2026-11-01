@@ -29,7 +29,7 @@ export default function Profile() {
   }, [profile])
 
   if (!profile) return null
-  const isSaao = !profile.designation || profile.designation === SAAO_TITLE
+  const isSaao = profile.role !== 'developer' && (!profile.designation || profile.designation === SAAO_TITLE)
   const blocks = locs.filter((l) => l.kind === 'block')
   const unions = locs.filter((l) => l.kind === 'union')
   const mErr = f.mobile ? mobileError(f.mobile) : null
@@ -71,7 +71,7 @@ export default function Profile() {
         <Avatar name={profile.full_name} size={64} />
         <div className="ph-text">
           <h1>{profile.full_name}</h1>
-          <div className="muted">{profile.designation ?? SAAO_TITLE}{profile.block_name && isSaao ? ` · ${profile.block_name} ব্লক` : ''}</div>
+          <div className="muted">{profile.role === 'developer' ? 'ডেভেলপার (সিস্টেম পরিচালনা)' : profile.designation ?? SAAO_TITLE}{profile.block_name && isSaao ? ` · ${profile.block_name} ব্লক` : ''}</div>
           <div className="chips-row">
             <span className="badge st-approved">{ROLE_LABEL[profile.role].replace(/ \(.*\)$/, '')}</span>
             <span className="badge">{profile.upazila}</span>

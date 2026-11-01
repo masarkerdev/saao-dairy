@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { isSaaoProfile } from '../types'
 import type { Profile, Role } from '../types'
 
 export type UserFilter = 'pending' | 'active' | 'all'
@@ -12,13 +13,13 @@ export async function listProfiles(filter: UserFilter): Promise<Profile[]> {
   return (data ?? []) as Profile[]
 }
 
-export async function pendingUsersCount(): Promise<number> {
-  const { count, error } = await supabase
-    .from('profiles')
-    .select('id', { count: 'exact', head: true })
-    .eq('active', false)
+// অপেক্ষমাণ সাইনআপ: শুধু এসএএও (কো-এডমিন/এডমিনের জন্য) বা শুধু কর্মকর্তা (ডেভেলপারের জন্য)
+export async function pendingUsersCount(kind: 'saao' | 'officer' | 'all' = 'all'): Promise<number> {
+  const { data, error } = await supabase.from('profiles').select('id, role, designation').eq('active', false)
   if (error) throw error
-  return count ?? 0
+  const rows = (data ?? []) as Pick<Profile, 'role' | 'designation'>[]
+  if (kind === 'all') return rows.length
+  return rows.filter((p) => (kind === 'saao') === isSaaoProfile(p)).length
 }
 
 const DENIED = 'পরিবর্তন করা যায়নি (অনুমতি নেই বা ইউজার পাওয়া যায়নি)।'
@@ -31,6 +32,13 @@ export async function setActive(id: string, active: boolean) {
 
 export async function setRole(id: string, role: Role) {
   const { data, error } = await supabase.from('profiles').update({ role }).eq('id', id).select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error(DENIED)
+}
+
+// অনুমোদন: ভূমিকা দিয়ে একসাথে সক্রিয় করা
+export async function approveUser(id: string, role: Role) {
+  const { data, error } = await supabase.from('profiles').update({ role, active: true }).eq('id', id).select('id')
   if (error) throw error
   if (!data?.length) throw new Error(DENIED)
 }

@@ -8,7 +8,7 @@ type DB = Record<string, Row[]>
 type Err = { message: string; code?: string }
 type Res = { data: any; error: Err | null; count?: number | null }
 
-const KEY = 'saao-demo-db-v3'
+const KEY = 'saao-demo-db-v4'
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
 
 function load(): DB {
@@ -35,6 +35,8 @@ const emit = (e: string) => listeners.forEach((cb) => cb(e, session()))
 const me = () => db.profiles.find((p) => p.id === uid)
 const role = () => { const p = me(); return p && p.active ? p.role : null }
 const reviewer = () => role() === 'coadmin' || role() === 'admin'
+const developer = () => role() === 'developer'
+const SAAO_T = 'উপসহকারী কৃষি কর্মকর্তা'
 const active = () => !!me()?.active
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 120))
 const newId = (p: string) => p + Math.random().toString(36).slice(2, 10)
@@ -80,7 +82,7 @@ function canRead(table: string, r: Row): boolean {
   if (table === 'locations') return true
   if (!uid) return false
   switch (table) {
-    case 'profiles': return r.id === uid || reviewer()
+    case 'profiles': return r.id === uid || reviewer() || developer()
     case 'schedules': return r.saao_id === uid || reviewer()
     case 'farmer_groups': return r.saao_id === uid || reviewer()
     case 'holidays': case 'topic_suggestions': case 'app_settings': return true
@@ -107,18 +109,25 @@ const RLS: Err = { message: 'new row violates row-level security policy' }
 const fail = (message: string): Err => ({ message })
 const DUP: Err = { message: 'duplicate key value violates unique constraint', code: '23505' }
 
+// sql/06_developer.sql-এর protect_profile-এর মতো
 function protectProfile(old: Row, next: Row): Err | null {
-  if (next.role !== old.role || next.active !== old.active) {
-    if (old.id === uid) return fail('নিজের role বা সক্রিয় অবস্থা বদলানো যায় না')
-    if (role() === 'admin') return null
-    if (role() === 'coadmin') {
-      if (old.role === 'admin' || next.role === 'admin')
-        return fail('এডমিন (উপজেলা কৃষি অফিসার) role দেওয়া বা এডমিনের একাউন্ট বদলানো শুধু এডমিন পারেন')
-      return null
-    }
-    return fail('role বা সক্রিয় অবস্থা বদলানোর অনুমতি নেই')
+  if (old.id === uid) {
+    if (next.role !== old.role || next.active !== old.active) return fail('নিজের role বা সক্রিয় অবস্থা বদলানো যায় না')
+    next.designation = old.designation
+    return null
   }
-  return null
+  if (developer()) {
+    if (next.role === 'developer' && old.role !== 'developer') return fail('ডেভেলপার ভূমিকা অ্যাপ থেকে দেওয়া যায় না')
+    if (old.role === 'developer') return fail('অন্য ডেভেলপারের একাউন্ট বদলানো যায় না')
+    return null
+  }
+  if (reviewer()) {
+    if (old.role !== 'saao' || (old.designation ?? SAAO_T) !== SAAO_T) return fail('কর্মকর্তাদের একাউন্ট শুধু ডেভেলপার অনুমোদন ও পরিবর্তন করতে পারেন')
+    if (next.role !== old.role) return fail('ভূমিকা বদলানো শুধু ডেভেলপার পারেন')
+    next.designation = old.designation
+    return null
+  }
+  return fail('অন্যের একাউন্ট বদলানোর অনুমতি নেই')
 }
 
 function scheduleProblem(s: Row): string | null {
@@ -300,7 +309,7 @@ class Query implements PromiseLike<Res> {
       const done: Row[] = []
       for (const old of rows.filter((r) => canRead(t, r) && this.match(r))) {
         if (t === 'profiles') {
-          if (!(old.id === uid || reviewer())) continue
+          if (!(old.id === uid || reviewer() || developer())) continue
           const next = { ...old, ...this.payload, id: old.id, email: old.email }
           const err = protectProfile(old, next)
           if (err) return { data: null, error: err }

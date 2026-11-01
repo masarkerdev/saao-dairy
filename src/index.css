@@ -475,6 +475,29 @@ input[type="search"] { font-size: 16px; }
   .gcards { grid-template-columns: 1fr; }
 }
 
+/* ইউজার ব্যবস্থাপনা / ডেভেলপার প্যানেল */
+.seg { display: inline-flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; }
+.seg button { background: transparent; color: var(--muted); border: 0; border-radius: 999px; padding: 7px 16px; font-size: .9rem; }
+.seg button.on { background: var(--ac); color: var(--ac-ink); font-weight: 600; }
+.kind-chips .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; }
+.kind-chips .chip b { font-size: .75rem; background: var(--bg); border-radius: 999px; padding: 0 7px; }
+.kind-chips .chip.on b { background: var(--card); }
+.ucards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.ucard { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+.ucard.pending { border-color: color-mix(in srgb, #d9a400 55%, var(--line)); box-shadow: inset 4px 0 0 #d9a400; }
+.uc-top { display: flex; gap: 12px; align-items: center; }
+.uc-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.uc-who strong { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.uc-who .badge, .uc-top > .badge { margin-left: 0; }
+.uc-info { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .82rem; color: var(--muted); }
+.uc-info span, .uc-info a { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.uc-info a { color: var(--ac); text-decoration: none; }
+.uc-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--line); }
+.uc-actions > button:not(.ghost) { display: inline-flex; align-items: center; gap: 6px; }
+.uc-actions select { width: auto; flex: 1; min-width: 180px; font-size: .9rem; padding: 7px 10px; }
+.lock-note { display: flex; align-items: center; gap: 6px; margin: 0; padding-top: 10px; border-top: 1px solid var(--line); }
+@media (max-width: 520px) { .ucards { grid-template-columns: 1fr; } .seg { display: flex; } .seg button { flex: 1; } }
+
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
   body { background: #fff; }

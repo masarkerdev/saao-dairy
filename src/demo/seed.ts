@@ -80,6 +80,8 @@ export function seed(): Record<string, Row[]> {
     P('u_sumi', 'সুমি দাশ', 'saao', { block_name: 'গহিরা', union_name: 'গহিরা', mobile: '01819234567' }),
     P('u_kamal', 'কামাল হোসেন', 'saao', { block_name: 'পাহাড়তলী', union_name: 'পাহাড়তলী', mobile: '01712345678' }),
     P('u_ayesha', 'আয়েশা সিদ্দিকা', 'saao', { block_name: 'হলদিয়া', union_name: 'হলদিয়া', mobile: '01718765432' }),
+    P('u_dev', 'ডেভেলপার', 'developer', { designation: null }),
+    P('u_newaeo', 'শাহানা পারভীন', 'saao', { mobile: '01711000009', designation: 'কৃষি সম্প্রসারণ কর্মকর্তা', active: false, created_at: '2026-10-12T05:10:00.000Z' }),
     P('u_tanvir', 'তানভীর হাসান', 'saao', { block_name: 'বিনাজুরী', union_name: 'বিনাজুরী', mobile: '01913456789', active: false, created_at: '2026-10-11T08:20:00.000Z' }),
   ]
 

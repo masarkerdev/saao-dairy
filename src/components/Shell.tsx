@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { ROLE_SHORT, isReviewer } from '../types'
+import { ROLE_SHORT, isDeveloper, isReviewer } from '../types'
 import Icon, { Avatar } from './Icon'
 
 // লগইনের পরের সব পেজ: উপরে অ্যাপ-বার (ডেস্কটপে মেনুসহ), মোবাইলে নিচে আইকনসহ মেনু
@@ -12,7 +12,9 @@ export default function Shell({ children }: { children: ReactNode }) {
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   if (!profile) return <>{children}</>
   const rev = isReviewer(profile.role)
-  const links: [string, string, string][] = rev
+  const links: [string, string, string][] = isDeveloper(profile.role)
+    ? [['/', 'অনুমোদন', 'review'], ['/profile', 'প্রোফাইল', 'user']]
+    : rev
     ? [['/', 'হোম', 'home'], ['/review', 'পর্যালোচনা', 'review'], ['/admin', 'ইউজার', 'groups'], ['/settings', 'সেটিংস', 'settings'], ['/profile', 'প্রোফাইল', 'user']]
     : [['/', 'হোম', 'home'], ['/groups', 'আমার গ্রুপ', 'groups'], ['/schedules/new', 'নতুন সূচি', 'calendarPlus'], ['/profile', 'প্রোফাইল', 'user']]
 
