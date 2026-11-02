@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useFeedback } from '../components/Feedback'
 import Icon, { Avatar } from '../components/Icon'
 import { useAuth } from '../lib/auth'
-import { listProfiles, setActive, setPost } from '../lib/admin'
+import { deleteUser, listProfiles, setActive, setPost } from '../lib/admin'
 import type { UserFilter } from '../lib/admin'
 import { bn } from '../lib/period'
 import { errMsg } from '../lib/schedules'
@@ -87,6 +87,23 @@ export default function Admin() {
   async function deactivate(p: Profile) {
     if (!(await confirm(`${p.full_name}-কে নিষ্ক্রিয় করবেন? তিনি আর লগইন করে কাজ করতে পারবেন না।`, { ok: 'নিষ্ক্রিয় করুন', danger: true }))) return
     await run(p, () => setActive(p.id, false), { active: false }, `${p.full_name} নিষ্ক্রিয় হয়েছেন`)
+  }
+
+  async function remove(p: Profile) {
+    const ok = await confirm(
+      `${p.full_name}-এর একাউন্ট একেবারে মুছে ফেলবেন? লগইন, প্রোফাইল, তাঁর নিজের সূচি ও কৃষক গ্রুপ মুছে যাবে। এটা আর ফেরত আনা যাবে না।`,
+      { ok: 'মুছে ফেলুন', danger: true },
+    )
+    if (!ok) return
+    setBusyId(p.id)
+    try {
+      await deleteUser(p.id)
+      setRows((r) => (r ?? []).filter((x) => x.id !== p.id))
+      toast(`${p.full_name}-এর একাউন্ট মুছে ফেলা হয়েছে`)
+    } catch (e) {
+      toast(errMsg(e, 'মোছা যায়নি।'), 'err')
+    }
+    setBusyId(null)
   }
 
   async function changePost(p: Profile, designation: string) {
@@ -196,6 +213,11 @@ export default function Admin() {
                       </>
                     ) : (
                       <button type="button" className="ghost sm danger-text" disabled={busy} onClick={() => void deactivate(p)}>নিষ্ক্রিয় করুন</button>
+                    )}
+                    {dev && (
+                      <button type="button" className="icon-btn danger-text uc-del" disabled={busy} aria-label={`${p.full_name}-এর একাউন্ট মুছুন`} title="একাউন্ট মুছুন" onClick={() => void remove(p)}>
+                        <Icon name="trash" size={18} />
+                      </button>
                     )}
                   </div>
                 ) : (

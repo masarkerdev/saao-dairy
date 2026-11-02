@@ -399,7 +399,28 @@ class Query implements PromiseLike<Res> {
   }
 }
 
-export const supabase = { auth, from: (table: string) => new Query(table) }
+// sql/08_delete_user.sql-এর মতো
+async function rpc(name: string, args: Row) {
+  if (name !== 'delete_user') return delay({ data: null, error: fail('অজানা ফাংশন') })
+  if (!developer()) return delay({ data: null, error: fail('ইউজার মোছার অনুমতি শুধু ডেভেলপারের') })
+  const t = args.target as string
+  if (t === uid) return delay({ data: null, error: fail('নিজের একাউন্ট মোছা যায় না') })
+  const v = db.profiles.find((p) => p.id === t)
+  if (!v) return delay({ data: null, error: fail('ইউজার পাওয়া যায়নি') })
+  if (v.role === 'developer') return delay({ data: null, error: fail('ডেভেলপারের একাউন্ট অ্যাপ থেকে মোছা যায় না') })
+  const mine = new Set(db.schedules.filter((s) => s.saao_id === t).map((s) => s.id))
+  db.schedules = db.schedules.filter((s) => !mine.has(s.id))
+  db.schedule_groups = db.schedule_groups.filter((g) => !mine.has(g.schedule_id))
+  db.schedule_events = db.schedule_events.filter((e) => !mine.has(e.schedule_id))
+  db.farmer_groups = db.farmer_groups.filter((g) => g.saao_id !== t)
+  for (const s of db.schedules) for (const k of ['approved_by', 'forwarded_by', 'returned_by']) if (s[k] === t) s[k] = null
+  for (const e of db.schedule_events) if (e.actor_id === t) e.actor_id = null
+  db.profiles = db.profiles.filter((p) => p.id !== t)
+  persist()
+  return delay({ data: v.full_name, error: null })
+}
+
+export const supabase = { auth, rpc, from: (table: string) => new Query(table) }
 export const envMissing = false
 export const envProblem = null
 export type EnvProblem = null

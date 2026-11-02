@@ -52,3 +52,10 @@ export async function setPost(id: string, post: Post, active?: boolean) {
   if (error) throw error
   if (!data?.length) throw new Error(DENIED)
 }
+
+// ডেভেলপার: ইউজার একেবারে মুছে ফেলা (sql/08_delete_user.sql)
+export async function deleteUser(id: string): Promise<string> {
+  const { data, error } = await supabase.rpc('delete_user', { target: id })
+  if (error) throw error
+  return String(data ?? '')
+}

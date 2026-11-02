@@ -508,6 +508,9 @@ input[type="search"] { font-size: 16px; }
 .dev-fix strong { display: flex; align-items: center; gap: 6px; color: var(--info); }
 .dev-fix select { width: auto; min-width: 180px; }
 
+.uc-del { margin-left: auto; }
+.uc-del:hover:not(:disabled) { background: var(--bad-bg) !important; color: var(--bad) !important; }
+
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
   body { background: #fff; }
