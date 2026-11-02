@@ -15,7 +15,7 @@ import { loadMonth, signerLines } from '../lib/month'
 import type { MonthData } from '../lib/month'
 import type { HolidayMap } from '../lib/period'
 import {
-  GROUP_COUNT, STATUS_LABEL, changeStatus, displayNumbers, emptyGroup, errMsg, filledCount, fmtTs, groupOrder, isFilled,
+  GROUP_COUNT, STATUS_LABEL, changeStatus, takenPlaces, displayNumbers, emptyGroup, errMsg, filledCount, fmtTs, groupOrder, isFilled,
   listEvents, loadSchedule, myPastTopics, rearranged, saveGroups, saveNotes, schedulePeriod,
 } from '../lib/schedules'
 import type { GroupInfo, GroupMap, LoadedSchedule, NoteMap, ScheduleEvent, Status } from '../lib/schedules'
@@ -39,6 +39,7 @@ export default function ScheduleEditor() {
   const [groups, setGroups] = useState<GroupMap>({})
   const [notes, setNotes] = useState<NoteMap>({})
   const [devStatus, setDevStatus] = useState<Status | ''>('')
+  const [otherTaken, setOtherTaken] = useState<Set<string>>(new Set())
   const [holidays, setHolidays] = useState<HolidayMap>({})
   const [farmerGroups, setFarmerGroups] = useState<FarmerGroup[]>([])
   const [topicChoices, setTopicChoices] = useState<string[]>([])
@@ -77,7 +78,7 @@ export default function ScheduleEditor() {
         const own = d.schedule.saao_id === profile.id
         const canEdit = own && ['draft', 'returned'].includes(d.schedule.status)
         const [fgs, past] = canEdit
-          ? await Promise.all([listFarmerGroups(profile.id).catch(() => []), myPastTopics(profile.id, d.schedule.id).catch(() => [])])
+          ? await Promise.all([listFarmerGroups(profile.id).then((l) => l.filter((f) => (f.block_name ?? '') === '' || f.block_name === d.schedule.block_name)).catch(() => []), myPastTopics(profile.id, d.schedule.id).catch(() => [])])
           : [[], []]
         if (!alive) return
         groupsRef.current = d.groups
@@ -87,6 +88,7 @@ export default function ScheduleEditor() {
         setNotes(d.notes)
         setHolidays(holidayMap(hol))
         setFarmerGroups(fgs)
+        if (canEdit) takenPlaces(d.schedule.saao_id, d.schedule.start_date, d.schedule.id).then((t) => alive && setOtherTaken(t)).catch(() => undefined)
         const seasonal = topicsForMonth(topics, per.month)
         setTopicChoices([...new Set([...past, ...seasonal])])
         setView(canEdit ? 'entry' : 'sheet')
@@ -175,7 +177,7 @@ export default function ScheduleEditor() {
     if (!period) return
     const ok = await confirm('ছুটি অনুযায়ী সব গ্রুপের তারিখ নতুন করে বসানো হবে। গ্রুপের নাম ও আলোচ্য বিষয় যেমন আছে তেমনই থাকবে। চালিয়ে যাবেন?', { ok: 'আবার সাজান' })
     if (!ok) return
-    const next = rearranged(groupsRef.current, period, holidays)
+    const next = rearranged(groupsRef.current, period, holidays, otherTaken)
     await applyPlaces(next, Array.from({ length: GROUP_COUNT }, (_, i) => i + 1))
     toast('তারিখগুলো ছুটি অনুযায়ী সাজানো হয়েছে')
   }
@@ -183,7 +185,7 @@ export default function ScheduleEditor() {
   async function onNewFarmerGroup(g: { group_name: string; address: string; mobile: string }) {
     if (!profile) return null
     try {
-      const fg = await saveFarmerGroup({ ...g, saao_id: profile.id, sort: farmerGroups.length + 1 })
+      const fg = await saveFarmerGroup({ ...g, saao_id: profile.id, sort: farmerGroups.length + 1, block_name: data?.schedule.block_name || null })
       setFarmerGroups((l) => [...l, fg])
       toast('গ্রুপটি আপনার তালিকায় যোগ হয়েছে')
       return fg
@@ -261,7 +263,7 @@ export default function ScheduleEditor() {
     try {
       const m = await showSheets()
       if (!m) throw new Error('তথ্য লোড হয়নি')
-      const name = fileBase(m.monthName, m.year, m.owner?.full_name)
+      const name = fileBase(m.monthName, m.year, [m.owner?.full_name, data?.schedule.extra_charge ? data.schedule.block_name : ''].filter(Boolean).join(' '))
       if (kind === 'pdf') {
         const { sheetsToPdf } = await import('../lib/exportPdf')
         const els = Array.from(sheetsRef.current?.querySelectorAll<HTMLElement>('.sheet') ?? [])
@@ -270,7 +272,7 @@ export default function ScheduleEditor() {
       } else {
         const { monthToDocx } = await import('../lib/exportDocx')
         const live = { ...m, pages: m.pages.map((pg) => pg.schedule?.id === data?.schedule.id ? { ...pg, groups: groupsRef.current, notes: notesRef.current } : pg) as MonthData['pages'] }
-        await saveBlob(await monthToDocx(live, signerLines(m.owner)), `${name}.docx`)
+        await saveBlob(await monthToDocx(live, signerLines(m.owner, data?.schedule)), `${name}.docx`)
       }
       toast(kind === 'pdf' ? 'PDF তৈরি হয়েছে' : 'Word ফাইল তৈরি হয়েছে')
     } catch (e) {
@@ -316,7 +318,7 @@ export default function ScheduleEditor() {
   if (status === 'error' || !data || !s || !profile || !period) return <div className="center err">সূচি লোড করা যায়নি। পেজ রিফ্রেশ করুন।</div>
 
   const owner = data.owner
-  const signer = signerLines(owner)
+  const signer = signerLines(owner, s)
   const canForward = profile.role === 'coadmin' && !own && s.status === 'submitted'
   const canDecide = profile.role === 'admin' && (s.status === 'submitted' || s.status === 'forwarded')
 
@@ -329,7 +331,8 @@ export default function ScheduleEditor() {
           <div className="hc-top">
             <div>
               <h1>{periodTitle(period)}</h1>
-              <div className="muted">{periodRange(period)}{owner ? ` · ${signer.join(', ')}` : ''}</div>
+              {s.extra_charge && <span className="badge xc">অতিরিক্ত দায়িত্ব · {s.block_name} ব্লক</span>}
+              <div className="muted">{periodRange(period)}{owner ? ` · ${signer.map((x) => x.replace(/,$/, '')).join(', ')}` : ''}</div>
             </div>
             <span className={`badge st-${s.status}`}>{STATUS_LABEL[s.status]}</span>
           </div>
@@ -452,7 +455,7 @@ export default function ScheduleEditor() {
           )}
           <EntryForm period={period} holidays={holidays} groups={groups} displayNo={displayNo} notes={notes} readOnly={!editable}
             farmerGroups={farmerGroups} topicChoices={topicChoices} onGroup={onGroup} onMove={onMove} onNote={onNote}
-            onNewFarmerGroup={onNewFarmerGroup} />
+            onNewFarmerGroup={onNewFarmerGroup} otherTaken={otherTaken} />
         </div>
       )}
 

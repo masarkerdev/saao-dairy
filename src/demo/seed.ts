@@ -124,9 +124,18 @@ export function seed(): Record<string, Row[]> {
     E('s_kamal_o2', 'u_aeo', 'submitted', 'forwarded', '2026-10-12T04:15:00.000Z', 'সব গ্রুপের তথ্য ঠিক আছে।'),
   ]
 
+  // ব্লক: সূচি ও গ্রুপ নিজ ব্লকের; রহিমকে বিনাজুরী ব্লকের অতিরিক্ত দায়িত্ব (sql/09)
+  const blockOf = (id: string) => (profiles.find((p) => p.id === id)?.block_name as string | null) ?? ''
+  for (const s of schedules) Object.assign(s, { block_name: blockOf(s.saao_id), extra_charge: false })
+  const fgExtra = farmerGroups('u_rahim', 6, 8).map((g, i) => ({ ...g, id: `fg_u_rahim_x${i + 1}`, block_name: 'বিনাজুরী', active: true }))
+  const farmer_groups = [...fgRahim, ...fgSumi, ...fgKamal].map((g) => ({ ...g, block_name: blockOf(g.saao_id) })).concat(fgExtra)
+  const block_charges = [
+    { id: 'bc_1', saao_id: 'u_rahim', block_name: 'বিনাজুরী', union_name: null, from_date: '2026-10-01', to_date: null, created_by: 'u_aao', created_at: '2026-09-30T04:00:00.000Z' },
+  ]
+
   return {
     profiles, schedules, schedule_groups, schedule_day_notes, schedule_events, schedule_entries: [],
-    farmer_groups: [...fgRahim, ...fgSumi, ...fgKamal],
+    farmer_groups, block_charges,
     holidays: [{ holiday_date: DEMO_HOLIDAY, name: 'নমুনা সরকারি ছুটি', created_at: '2026-10-10T04:00:00.000Z' }],
     topic_suggestions: TOPICS.map(([topic, months], i) => ({ id: i + 1, topic, months, sort: i + 1, active: true })),
     locations: [

@@ -4,15 +4,18 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useFeedback } from '../components/Feedback'
 import Icon from '../components/Icon'
 import { useAuth } from '../lib/auth'
+import { blocksFor, listCharges } from '../lib/blocks'
+import type { BlockCharge } from '../lib/blocks'
 import { holidayMap, listFarmerGroups, listHolidays } from '../lib/catalog'
 import type { FarmerGroup, Holiday } from '../lib/catalog'
 import {
-  MONTHS, WEEKDAYS, bn, dayKind, defaultPlaces, fmtDayMonth, nextPeriod, periodDates, periodEnd, periodRange, periodStart, planningPeriod, prevPeriod, todayISO,
+  MONTHS, WEEKDAYS, bn, dayKind, freePlaces, fmtDayMonth, nextPeriod, periodDates, periodEnd, periodRange, periodStart, planningPeriod, prevPeriod, todayISO,
 } from '../lib/period'
 import type { Period } from '../lib/period'
-import { createSchedule, errMsg, listMySchedules } from '../lib/schedules'
+import { createSchedule, errMsg, listMySchedules, takenPlaces } from '../lib/schedules'
 
 const key = (p: Period) => `${p.year}-${p.month}-${p.fortnight}`
+const ek = (start: string, block: string) => `${start}|${block}`
 const parseKey = (k: string | null): Period | null => {
   const m = k?.match(/^(\d{4})-(\d{1,2})-([12])$/)
   return m ? { year: Number(m[1]), month: Number(m[2]), fortnight: Number(m[3]) as 1 | 2 } : null
@@ -26,6 +29,9 @@ export default function NewSchedule() {
   const today = todayISO()
   const [period, setPeriod] = useState<Period>(parseKey(params.get('p')) ?? planningPeriod(today))
   const [existing, setExisting] = useState<Set<string>>(new Set())
+  const [charges, setCharges] = useState<BlockCharge[]>([])
+  const [block, setBlock] = useState<string>(params.get('b') ?? '')
+  const [taken, setTaken] = useState<Set<string>>(new Set())
   const [fgs, setFgs] = useState<FarmerGroup[]>([])
   const [prefill, setPrefill] = useState(true)
   const [holidays, setHolidays] = useState<Holiday[]>([])
@@ -43,16 +49,19 @@ export default function NewSchedule() {
   useEffect(() => {
     if (!profile) return
     listMySchedules(profile.id).then((l) => {
-      const have = new Set(l.map((s) => s.start_date))
+      const have = new Set(l.map((s) => ek(s.start_date, s.block_name ?? '')))
       setExisting(have)
       // লিংকে পক্ষ না থাকলে: সামনের প্রথম যে পক্ষের সূচি এখনো হয়নি
       if (!params.get('p')) {
+        const b = params.get('b') ?? profile.block_name ?? ''
         let p = planningPeriod(today)
-        for (let i = 0; i < 4 && have.has(periodStart(p)); i++) p = nextPeriod(p)
-        if (!have.has(periodStart(p))) setPeriod(p)
+        for (let i = 0; i < 4 && have.has(ek(periodStart(p), b)); i++) p = nextPeriod(p)
+        if (!have.has(ek(periodStart(p), b))) setPeriod(p)
       }
     }).catch(() => undefined)
     listFarmerGroups(profile.id).then((l) => setFgs(l.filter((f) => f.active))).catch(() => undefined)
+    listCharges(profile.id).then(setCharges).catch(() => setCharges([]))
+    if (!params.get('b')) setBlock(profile.block_name ?? '')
   }, [profile])
 
   useEffect(() => {
@@ -62,9 +71,18 @@ export default function NewSchedule() {
   const hmap = holidayMap(holidays)
   const dates = periodDates(period)
   const visitDays = dates.filter((d) => dayKind(d, hmap) === 'visit').length
-  const places = defaultPlaces(period, hmap)
+  const places = freePlaces(period, hmap, taken)
   const usesSunday = places.some((pl) => dayKind(pl.visit_date, hmap) === 'sunday')
-  const already = existing.has(periodStart(period))
+  const blocks = blocksFor(profile, charges, period)
+  const cur = blocks.find((b) => b.name === block) ?? blocks[0]
+  const ownBlock = profile?.block_name ?? ''
+  const blockFgs = fgs.filter((f) => (f.block_name || ownBlock) === cur.name)
+  const already = existing.has(ek(periodStart(period), cur.name))
+  // অন্য ব্লকের সূচিতে নেওয়া বেলা
+  useEffect(() => {
+    if (!profile) return
+    takenPlaces(profile.id, periodStart(period), undefined, cur.name).then(setTaken).catch(() => setTaken(new Set()))
+  }, [profile, period, cur.name])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -72,7 +90,7 @@ export default function NewSchedule() {
     if (!profile || already) return
     setBusy(true)
     try {
-      const s = await createSchedule(profile.id, period, hmap, prefill ? fgs.slice(0, 12) : [])
+      const s = await createSchedule(profile.id, period, hmap, prefill ? blockFgs.slice(0, 12) : [], cur.name, taken)
       toast('সূচি তৈরি হয়েছে')
       nav(`/schedules/${s.id}`, { replace: true })
     } catch (err) {
@@ -98,13 +116,33 @@ export default function NewSchedule() {
         </div>
       </header>
       <form onSubmit={onSubmit} className="ns-form">
+        {blocks.length > 1 && (
+          <section className="card">
+            <h2><Icon name="map" size={18} /> কোন ব্লকের সূচি?</h2>
+            <p className="muted small" style={{ margin: '0 0 10px' }}>প্রতিটি ব্লকের সূচি আলাদা জমা ও প্রিন্ট হয়।</p>
+            <div className="periods">
+              {blocks.map((b) => (
+                <label key={b.name} className={'pcard' + (cur.name === b.name ? ' on' : '')}>
+                  <input type="radio" name="block" checked={cur.name === b.name} onChange={() => setBlock(b.name)} />
+                  <span className="pc-badge"><Icon name="map" size={20} /></span>
+                  <span className="pc-text">
+                    <span className="pt">{b.name || 'নিজ'} ব্লক</span>
+                    <span className="muted small">{b.extra ? 'অতিরিক্ত দায়িত্ব' : 'নিজ ব্লক'}</span>
+                  </span>
+                  {cur.name === b.name && <Icon name="check" size={18} className="pc-check" />}
+                </label>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="card">
           <h2><span className="stepno">১</span> কোন পক্ষের সূচি?</h2>
           <fieldset className="periods">
             <legend className="sr-only">পক্ষ</legend>
             {options.map((p) => {
               const k = key(p)
-              const has = existing.has(periodStart(p))
+              const has = existing.has(ek(periodStart(p), cur.name))
               const on = key(period) === k
               return (
                 <label key={k} className={'pcard' + (on ? ' on' : '') + (has ? ' has' : '')}>
@@ -154,6 +192,9 @@ export default function NewSchedule() {
               {holidays.map((h) => <li key={h.holiday_date}><Icon name="sun" size={16} /> {fmtDayMonth(h.holiday_date)}: {h.name}</li>)}
             </ul>
           )}
+          {taken.size > 0 && (
+            <p className="note-soft">অন্য ব্লকের সূচিতে এই পক্ষের {bn(taken.size)}টি বেলা নেওয়া আছে, সেগুলো বাদ দিয়ে এই ব্লকে {bn(places.length)}টি গ্রুপের জায়গা বসবে।{places.length < 12 ? ' বাকি গ্রুপের তারিখ পরে নিজে বেছে নিতে পারবেন বা খালি রাখতে পারবেন।' : ''}</p>
+          )}
           {usesSunday && (
             <p className="note-soft warn">ছুটির কারণে ভিজিটের দিন কম, তাই কিছু গ্রুপ রবিবারে বসবে। পরে নিজে তারিখ বদলাতে পারবেন।</p>
           )}
@@ -161,14 +202,14 @@ export default function NewSchedule() {
 
         <section className="card">
           <h2><span className="stepno">৩</span> গ্রুপের তথ্য</h2>
-          <label className={'prefill' + (prefill && fgs.length ? ' on' : '')}>
-            <input type="checkbox" checked={prefill && fgs.length > 0} disabled={!fgs.length} onChange={(e) => setPrefill(e.target.checked)} />
+          <label className={'prefill' + (prefill && blockFgs.length ? ' on' : '')}>
+            <input type="checkbox" checked={prefill && blockFgs.length > 0} disabled={!blockFgs.length} onChange={(e) => setPrefill(e.target.checked)} />
             <span className="pf-ico"><Icon name="groups" /></span>
             <span>
-              {fgs.length
-                ? <>আমার গ্রুপ তালিকার প্রথম <b>{bn(Math.min(12, fgs.length))}</b>টি গ্রুপ নাম, ঠিকানা ও মোবাইলসহ নিজে বসুক</>
+              {blockFgs.length
+                ? <>আমার গ্রুপ তালিকার প্রথম <b>{bn(Math.min(12, blockFgs.length))}</b>টি গ্রুপ নাম, ঠিকানা ও মোবাইলসহ নিজে বসুক</>
                 : 'আপনার গ্রুপ তালিকা খালি। '}
-              {!fgs.length && <Link to="/groups">আগে গ্রুপ তালিকা তৈরি করুন</Link>}
+              {!blockFgs.length && <Link to={`/groups?b=${encodeURIComponent(cur.name)}`}>আগে {cur.extra ? `${cur.name} ব্লকের ` : ""}গ্রুপ তালিকা তৈরি করুন</Link>}
             </span>
           </label>
         </section>

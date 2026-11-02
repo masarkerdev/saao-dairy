@@ -511,6 +511,26 @@ input[type="search"] { font-size: 16px; }
 .uc-del { margin-left: auto; }
 .uc-del:hover:not(:disabled) { background: var(--bad-bg) !important; color: var(--bad) !important; }
 
+/* অতিরিক্ত দায়িত্ব */
+.badge.xc { background: var(--warn-bg); color: var(--warn); border-color: transparent; margin-left: 6px; }
+.xcard { display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #d9a400; }
+.xc-top { display: flex; align-items: center; gap: 12px; }
+.xc-top .grow { flex: 1; min-width: 0; }
+.xc-top .eyebrow { font-size: .72rem; color: var(--warn); font-weight: 600; }
+.xc-top .badge { margin-left: 0; }
+.ghost-btn { display: inline-flex !important; align-items: center; justify-content: center; gap: 6px; background: var(--ac-soft) !important; color: var(--ac) !important; border-color: transparent !important; font-weight: 600; }
+.xrow { background: color-mix(in srgb, var(--warn-bg) 45%, transparent); }
+.xcharge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .85rem; }
+.xc-label { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: .8rem; margin-right: 2px; }
+.xchip { display: inline-flex; align-items: center; gap: 6px; background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.xchip small { opacity: .85; font-size: .72rem; }
+.xchip button { background: none; border: 0; padding: 0 0 0 2px; color: inherit; display: inline-grid; place-items: center; }
+.xc-form { flex: 1 1 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; border: 1px dashed var(--line); border-radius: 12px; margin-top: 4px; }
+.xc-form > select, .xc-form > input, .xc-form > .row { grid-column: 1 / -1; }
+.xc-form label { font-size: .75rem; color: var(--muted); gap: 2px; }
+.xc-form input, .xc-form select { padding: 6px 8px; font-size: .9rem; }
+.block-seg { flex-wrap: wrap; }
+
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
   body { background: #fff; }

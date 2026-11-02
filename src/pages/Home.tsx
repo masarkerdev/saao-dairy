@@ -5,6 +5,8 @@ import Icon, { Avatar } from '../components/Icon'
 import StatusSteps from '../components/StatusSteps'
 import { pendingUsersCount } from '../lib/admin'
 import { useAuth } from '../lib/auth'
+import { blocksFor, listCharges } from '../lib/blocks'
+import type { BlockCharge } from '../lib/blocks'
 import { getSubmitDaysBefore, listFarmerGroups } from '../lib/catalog'
 import { periodOverview } from '../lib/dashboard'
 import type { RowState, SaaoRow } from '../lib/dashboard'
@@ -57,6 +59,7 @@ function SaaoHome() {
   const [groupCount, setGroupCount] = useState<number | null>(null)
   const [filled, setFilled] = useState<Record<string, number>>({})
   const [daysBefore, setDaysBefore] = useState(2)
+  const [charges, setCharges] = useState<BlockCharge[]>([])
   const today = todayISO()
   const focus = planningPeriod(today)
 
@@ -65,11 +68,14 @@ function SaaoHome() {
     listMySchedules(profile.id).then(setList).catch(() => setList([]))
     listFarmerGroups(profile.id).then((l) => setGroupCount(l.filter((x) => x.active).length)).catch(() => setGroupCount(null))
     getSubmitDaysBefore().then(setDaysBefore).catch(() => undefined)
+    listCharges(profile.id).then(setCharges).catch(() => setCharges([]))
   }, [profile])
 
   // ফোকাসের সূচির পূরণ-সংখ্যা
-  const current = list?.find((s) => s.start_date === periodStart(focus)) ?? null
-  const running = list?.find((s) => s.start_date === periodStart(prevPeriod(focus))) ?? null
+  const mineOwn = (s: Schedule) => !s.extra_charge
+  const current = list?.find((s) => s.start_date === periodStart(focus) && mineOwn(s)) ?? null
+  const running = list?.find((s) => s.start_date === periodStart(prevPeriod(focus)) && mineOwn(s)) ?? null
+  const extraBlocks = blocksFor(profile, charges, focus).filter((b) => b.extra)
   useEffect(() => {
     if (!current) return
     countFilled(current.id).then((n) => setFilled((f) => ({ ...f, [current.id]: n }))).catch(() => undefined)
@@ -155,6 +161,25 @@ function SaaoHome() {
         )}
       </section>
 
+      {extraBlocks.map((b) => {
+        const xs = list?.find((s) => s.start_date === periodStart(focus) && s.block_name === b.name) ?? null
+        return (
+          <section key={b.name} className="card xcard">
+            <div className="xc-top">
+              <span className="qa-ico"><Icon name="map" /></span>
+              <div className="grow">
+                <div className="eyebrow">অতিরিক্ত দায়িত্ব</div>
+                <strong>{b.name} ব্লক · {periodTitle(focus)}</strong>
+              </div>
+              {xs ? <span className={`badge st-${xs.status}`}>{STATUS_SHORT[xs.status]}</span> : <span className="badge st-none">তৈরি হয়নি</span>}
+            </div>
+            {xs
+              ? <Link to={`/schedules/${xs.id}`} className="btn ghost-btn">সূচি খুলুন <Icon name="right" size={16} /></Link>
+              : <Link to={`/schedules/new?p=${focus.year}-${focus.month}-${focus.fortnight}&b=${encodeURIComponent(b.name)}`} className="btn ghost-btn">এই ব্লকের সূচি তৈরি করুন <Icon name="right" size={16} /></Link>}
+          </section>
+        )
+      })}
+
       <div className="qa">
         <Link to={newLink} className="qa-item"><span className="qa-ico"><Icon name="calendarPlus" /></span><span>নতুন সূচি</span></Link>
         <Link to="/groups" className="qa-item"><span className="qa-ico"><Icon name="groups" /></span><span>আমার গ্রুপ{groupCount ? ` (${bn(groupCount)})` : ''}</span></Link>
@@ -176,7 +201,7 @@ function SaaoHome() {
                     <span className="sc-date"><b>{p.fortnight === 1 ? '১ম' : '২য়'}</b><small>পক্ষ</small></span>
                     <span className="grow">
                       <strong>{periodTitle(p)}</strong>
-                      <span className="muted small">{periodRange(p)}</span>
+                      <span className="muted small">{periodRange(p)}{s.extra_charge ? ` · ${s.block_name} ব্লক (অতিরিক্ত)` : ''}</span>
                     </span>
                     <span className={`badge st-${s.status}`}>{STATUS_SHORT[s.status]}</span>
                   </Link>
@@ -269,18 +294,18 @@ function ReviewerHome() {
         {rows && rows.length > 0 && (
           <>
             <div className="row between small" style={{ marginTop: 10 }}>
-              <span className="muted">{filter === 'all' ? `সব এসএএও (${bn(rows.length)})` : filter === 'notyet' ? 'যাঁরা জমা দেননি' : 'আপনার কাজ বাকি'}</span>
+              <span className="muted">{filter === 'all' ? `সব ব্লক (${bn(rows.length)})` : filter === 'notyet' ? 'যাঁরা জমা দেননি' : 'আপনার কাজ বাকি'}</span>
               {filter !== 'all' && <button type="button" className="ghost sm" onClick={() => setFilter('all')}>সবাই দেখুন</button>}
             </div>
             <ul className="list srows">
               {shown.map((r) => (
-                <li key={r.profile.id}>
+                <li key={r.key} className={r.extra ? 'xrow' : ''}>
                   {r.schedule ? (
                     <Link to={`/schedules/${r.schedule.id}`} className="grow who-cell">
                       <Avatar name={r.profile.full_name} size={34} />
                       <span>
                       <strong>{r.profile.full_name}</strong>
-                      <div className="muted small">{r.profile.block_name ? `${r.profile.block_name} ব্লক · ` : ''}{bn(r.filled)}/১২ গ্রুপ</div>
+                      <div className="muted small">{r.block ? `${r.block} ব্লক${r.extra ? ' (অতিরিক্ত দায়িত্ব)' : ''} · ` : ''}{bn(r.filled)}/১২ গ্রুপ</div>
                       </span>
                     </Link>
                   ) : (
@@ -288,7 +313,7 @@ function ReviewerHome() {
                       <Avatar name={r.profile.full_name} size={34} />
                       <span>
                       <strong>{r.profile.full_name}</strong>
-                      <div className="muted small">{r.profile.block_name ? `${r.profile.block_name} ব্লক` : ''}</div>
+                      <div className="muted small">{r.block ? `${r.block} ব্লক${r.extra ? ' (অতিরিক্ত দায়িত্ব)' : ''}` : ''}</div>
                       </span>
                     </div>
                   )}

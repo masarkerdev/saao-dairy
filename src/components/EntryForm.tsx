@@ -21,6 +21,7 @@ interface Props {
   onMove: (no: number, place: { visit_date: string; slot: 1 | 2 } | null) => void
   onNote: (date: string, value: string) => void
   onNewFarmerGroup: (g: { group_name: string; address: string; mobile: string }) => Promise<FarmerGroup | null>
+  otherTaken?: Set<string> // নিজের অন্য ব্লকের সূচিতে নেওয়া বেলা
 }
 
 const SLOT = { 1: 'সকাল ৯.০০-১১.৩০', 2: 'দুপুর ১২.৩০-৩.০০' } as const
@@ -33,7 +34,7 @@ export default function EntryForm(p: Props) {
 
   const order = groupOrder(p.groups)
   const hostDates = periodDates(p.period).filter((d) => canHostGroups(d, p.holidays))
-  const taken = new Set(order.map((no) => p.groups[no]).filter((g) => g?.visit_date).map((g) => `${g!.visit_date}|${g!.slot}`))
+  const taken = new Set([...(p.otherTaken ?? []), ...order.map((no) => p.groups[no]).filter((g) => g?.visit_date).map((g) => `${g!.visit_date}|${g!.slot}`)])
   const activeFG = p.farmerGroups.filter((f) => f.active)
 
   // তারিখ অনুযায়ী ভাগ

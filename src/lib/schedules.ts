@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { FarmerGroup } from './catalog'
 import { normalizeMobile } from './mobile'
-import { MONTHS, bn, defaultPlaces, periodOf, periodStart } from './period'
+import { MONTHS, bn, freePlaces, periodOf, periodStart, placeKey } from './period'
 import type { HolidayMap, Period, Place } from './period'
 import type { Profile } from '../types'
 
@@ -21,6 +21,8 @@ export interface Schedule {
   forwarded_at: string | null
   approved_at: string | null
   returned_at: string | null
+  block_name: string // কোন ব্লকের সূচি
+  extra_charge: boolean // অতিরিক্ত দায়িত্বের ব্লক কি না
 }
 
 // একটি কৃষক গ্রুপের ভিজিট (ছবির ফর্মের এক ঘর + পাশের ৫টি আলোচ্য বিষয়)
@@ -95,8 +97,8 @@ export function displayNumbers(groups: GroupMap): Record<number, number> {
 }
 
 // ছুটি অনুযায়ী আবার সাজানো: গ্রুপের তথ্য ঠিক থাকে, শুধু তারিখ নতুন করে বসে (আগের ক্রম বজায় রেখে)
-export function rearranged(groups: GroupMap, p: Period, holidays: HolidayMap): GroupMap {
-  const places = defaultPlaces(p, holidays, GROUP_COUNT)
+export function rearranged(groups: GroupMap, p: Period, holidays: HolidayMap, taken: Set<string> = new Set()): GroupMap {
+  const places = freePlaces(p, holidays, taken, GROUP_COUNT)
   const out: GroupMap = {}
   groupOrder(groups).forEach((no, i) => {
     const pl: Place | undefined = places[i]
@@ -117,16 +119,32 @@ const rowOf = (scheduleId: string, no: number, g: GroupInfo) => ({
 })
 
 // নতুন সূচি: ১২টি গ্রুপের জায়গা ছুটি মেনে বসে; চাইলে নিজের গ্রুপ তালিকার প্রথম ১২টি নাম-ঠিকানা-মোবাইলসহ বসে
-export async function createSchedule(userId: string, p: Period, holidays: HolidayMap, prefill: FarmerGroup[]): Promise<Schedule> {
+// একই পক্ষে নিজের অন্য ব্লকের সূচিতে যেসব বেলায় ভিজিট আছে (একই সময়ে দুই জায়গায় থাকা যায় না)
+export async function takenPlaces(userId: string, start: string, exceptScheduleId?: string, exceptBlock?: string): Promise<Set<string>> {
+  const { data, error } = await supabase.from('schedules').select('id,block_name').eq('saao_id', userId).eq('start_date', start)
+  if (error) throw error
+  const ids = ((data ?? []) as { id: string; block_name?: string }[])
+    .filter((s) => s.id !== exceptScheduleId && (exceptBlock === undefined || (s.block_name ?? '') !== exceptBlock))
+    .map((s) => s.id)
+  const out = new Set<string>()
+  if (!ids.length) return out
+  const g = await supabase.from('schedule_groups').select('group_name,visit_date,slot').in('schedule_id', ids)
+  if (g.error) throw g.error
+  // নাম না থাকলেও যে বেলায় গ্রুপ বসানো আছে তা ওই ব্লকের জন্য রাখা ধরা হয়
+  for (const r of g.data ?? []) if (r.visit_date && r.slot) out.add(placeKey(r.visit_date, r.slot))
+  return out
+}
+
+export async function createSchedule(userId: string, p: Period, holidays: HolidayMap, prefill: FarmerGroup[], block = '', taken: Set<string> = new Set()): Promise<Schedule> {
   const start = periodStart(p)
   const { data, error } = await supabase
     .from('schedules')
-    .insert({ saao_id: userId, start_date: start, month_label: MONTHS[p.month - 1], fortnight: p.fortnight, status: 'draft' })
+    .insert({ saao_id: userId, start_date: start, month_label: MONTHS[p.month - 1], fortnight: p.fortnight, status: 'draft', block_name: block })
     .select()
     .single()
   if (error) throw error
   const created = data as Schedule
-  const places = defaultPlaces(p, holidays, GROUP_COUNT)
+  const places = freePlaces(p, holidays, taken, GROUP_COUNT)
   const rows = Array.from({ length: GROUP_COUNT }, (_, i) => {
     const fg = prefill[i]
     const g: GroupInfo = {

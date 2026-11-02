@@ -42,7 +42,7 @@ export default function Review() {
     const t = q.trim().toLowerCase()
     if (!rows || !t) return rows
     return rows.filter((s) =>
-      [s.owner?.full_name, s.owner?.block_name, s.owner?.union_name, s.month_label].some((v) => (v ?? '').toLowerCase().includes(t)),
+      [s.owner?.full_name, s.block_name, s.owner?.block_name, s.owner?.union_name, s.month_label].some((v) => (v ?? '').toLowerCase().includes(t)),
     )
   }, [rows, q])
 
@@ -74,7 +74,8 @@ export default function Review() {
               <li key={s.id}>
                 <Link to={`/schedules/${s.id}`} className="grow">
                   <strong>{s.owner?.full_name ?? 'অজানা'}</strong>
-                  {s.owner?.block_name ? ` · ${s.owner.block_name} ব্লক` : ''}
+                  {(s.block_name || s.owner?.block_name) ? ` · ${s.block_name || s.owner?.block_name} ব্লক` : ''}
+                  {s.extra_charge && <span className="badge xc">অতিরিক্ত দায়িত্ব</span>}
                   <div className="muted">
                     {s.month_label} · {s.fortnight === 1 ? '১ম' : '২য়'} পক্ষ ({periodRange(schedulePeriod(s))})
                     {s.submitted_at ? ` · জমা ${fmtDate(toISO(new Date(s.submitted_at)))}` : ''}

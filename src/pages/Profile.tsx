@@ -4,10 +4,12 @@ import { Field } from '../components/AuthLayout'
 import { useFeedback } from '../components/Feedback'
 import Icon, { Avatar } from '../components/Icon'
 import { useAuth } from '../lib/auth'
+import { listCharges } from '../lib/blocks'
+import type { BlockCharge } from '../lib/blocks'
 import { listLocations } from '../lib/catalog'
 import type { Location } from '../lib/catalog'
 import { mobileError, normalizeMobile } from '../lib/mobile'
-import { bn } from '../lib/period'
+import { bn, fmtDayMonth } from '../lib/period'
 import { errMsg } from '../lib/schedules'
 import { supabase } from '../lib/supabase'
 import { SAAO_TITLE, isSaaoProfile, roleTitle } from '../types'
@@ -17,6 +19,7 @@ export default function Profile() {
   const { profile, refreshProfile, signOut } = useAuth()
   const { toast } = useFeedback()
   const [locs, setLocs] = useState<Location[]>([])
+  const [charges, setCharges] = useState<BlockCharge[]>([])
   const [f, setF] = useState({ full_name: '', mobile: '', block_name: '', union_name: '' })
   const [pw, setPw] = useState({ a: '', b: '' })
   const [busy, setBusy] = useState<'' | 'info' | 'pw'>('')
@@ -24,6 +27,9 @@ export default function Profile() {
   useEffect(() => {
     listLocations().then(setLocs).catch(() => setLocs([]))
   }, [])
+  useEffect(() => {
+    if (profile?.role === 'saao') listCharges(profile.id).then(setCharges).catch(() => setCharges([]))
+  }, [profile])
   useEffect(() => {
     if (profile) setF({ full_name: profile.full_name, mobile: profile.mobile ? bn(profile.mobile) : '', block_name: profile.block_name ?? '', union_name: profile.union_name ?? '' })
   }, [profile])
@@ -117,6 +123,20 @@ export default function Profile() {
           <div><button disabled={busy === 'info'}>{busy === 'info' ? 'সেভ হচ্ছে…' : 'তথ্য সেভ করুন'}</button></div>
         </form>
       </section>
+
+      {isSaao && charges.length > 0 && (
+        <section className="card">
+          <h2><Icon name="map" size={18} /> অতিরিক্ত দায়িত্ব</h2>
+          <div className="chips-row">
+            {charges.map((c) => (
+              <span key={c.id} className="chip xchip">{c.block_name} ব্লক
+                {(c.from_date || c.to_date) && <small>{c.from_date ? fmtDayMonth(c.from_date) : 'শুরু'} – {c.to_date ? fmtDayMonth(c.to_date) : 'চলমান'}</small>}
+              </span>
+            ))}
+          </div>
+          <p className="muted small" style={{ margin: '8px 0 0' }}>প্রতিটি ব্লকের সূচি আলাদা তৈরি ও জমা দিতে হবে। দায়িত্ব দেন বা তুলে নেন উপজেলা কৃষি অফিসার বা কো-এডমিন।</p>
+        </section>
+      )}
 
       <section className="card">
         <h2><Icon name="lock" size={18} /> পাসওয়ার্ড বদলান</h2>

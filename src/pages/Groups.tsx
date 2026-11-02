@@ -3,7 +3,10 @@ import type { FormEvent } from 'react'
 import { Field } from '../components/AuthLayout'
 import Icon from '../components/Icon'
 import { useFeedback } from '../components/Feedback'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { blocksFor, listCharges } from '../lib/blocks'
+import type { BlockCharge } from '../lib/blocks'
 import { deleteFarmerGroup, listFarmerGroups, saveFarmerGroup } from '../lib/catalog'
 import type { FarmerGroup } from '../lib/catalog'
 import { mobileError } from '../lib/mobile'
@@ -17,6 +20,9 @@ export default function Groups() {
   const { profile } = useAuth()
   const { confirm, toast } = useFeedback()
   const [list, setList] = useState<FarmerGroup[] | null>(null)
+  const [params] = useSearchParams()
+  const [charges, setCharges] = useState<BlockCharge[]>([])
+  const [block, setBlock] = useState<string | null>(params.get('b'))
   const [form, setForm] = useState(blank)
   const [editId, setEditId] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -26,10 +32,16 @@ export default function Groups() {
 
   useEffect(() => {
     if (profile) listFarmerGroups(profile.id).then(setList).catch(() => setList([]))
+    if (profile) listCharges(profile.id).then(setCharges).catch(() => setCharges([]))
   }, [profile])
 
   if (!profile) return null
-  const items = list ?? []
+  const ownBlock = profile.block_name ?? ''
+  const blocks = blocksFor(profile, charges)
+  // দায়িত্ব শেষ হলেও আগের গ্রুপগুলো দেখা যাক
+  for (const f of list ?? []) if (f.block_name && !blocks.some((b) => b.name === f.block_name)) blocks.push({ name: f.block_name, extra: true })
+  const cur = blocks.find((b) => b.name === (block ?? ownBlock)) ?? blocks[0]
+  const items = (list ?? []).filter((f) => (f.block_name || ownBlock) === cur.name)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -40,7 +52,7 @@ export default function Groups() {
     setBusy(true)
     try {
       const saved = await saveFarmerGroup({
-        ...form, id: editId ?? undefined, saao_id: profile!.id,
+        ...form, id: editId ?? undefined, saao_id: profile!.id, block_name: cur.name || null,
         sort: editId ? items.find((x) => x.id === editId)?.sort ?? 0 : items.length + 1,
       })
       setList((l) => editId ? (l ?? []).map((x) => (x.id === saved.id ? saved : x)) : [...(l ?? []), saved])
@@ -105,6 +117,17 @@ export default function Groups() {
         </div>
         {!open && <button type="button" className="btn-add" onClick={() => setOpen(true)}><Icon name="plus" size={18} /> নতুন গ্রুপ</button>}
       </header>
+
+      {blocks.length > 1 && (
+        <div className="seg block-seg" role="tablist" aria-label="ব্লক">
+          {blocks.map((b) => (
+            <button key={b.name} type="button" role="tab" aria-selected={cur.name === b.name} className={cur.name === b.name ? 'on' : ''}
+              onClick={() => { setBlock(b.name); close() }}>
+              {b.name || 'নিজ'} ব্লক{b.extra ? ' · অতিরিক্ত' : ''}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="stat-strip">
         <div><b>{bn(items.length)}</b><span>মোট গ্রুপ</span></div>

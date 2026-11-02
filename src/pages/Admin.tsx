@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useFeedback } from '../components/Feedback'
 import Icon, { Avatar } from '../components/Icon'
 import { useAuth } from '../lib/auth'
+import { addCharge, listCharges, removeCharge } from '../lib/blocks'
+import type { BlockCharge } from '../lib/blocks'
+import { listLocations } from '../lib/catalog'
+import { fmtDayMonth } from '../lib/period'
 import { deleteUser, listProfiles, setActive, setPost } from '../lib/admin'
 import type { UserFilter } from '../lib/admin'
 import { bn } from '../lib/period'
@@ -30,6 +34,42 @@ export default function Admin() {
   const [error, setError] = useState('')
   const [q, setQ] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [charges, setCharges] = useState<BlockCharge[]>([])
+  const [allBlocks, setAllBlocks] = useState<string[]>([])
+  const [chargeFor, setChargeFor] = useState<string | null>(null)
+  const [cf, setCf] = useState({ block: '', from: '', to: '' })
+
+  useEffect(() => {
+    listCharges().then(setCharges).catch(() => setCharges([]))
+    listLocations().then((l) => setAllBlocks(l.filter((x) => x.kind === 'block').map((x) => x.name))).catch(() => setAllBlocks([]))
+  }, [])
+
+  async function giveCharge(p: Profile) {
+    if (!cf.block.trim()) return toast('ব্লক বাছুন বা লিখুন', 'err')
+    if (cf.from && cf.to && cf.to < cf.from) return toast('শেষ তারিখ শুরুর আগে হতে পারে না', 'err')
+    setBusyId(p.id)
+    try {
+      const c = await addCharge({ saao_id: p.id, block_name: cf.block, from_date: cf.from, to_date: cf.to })
+      setCharges((l) => [...l, c])
+      setChargeFor(null)
+      setCf({ block: '', from: '', to: '' })
+      toast(`${p.full_name}-কে ${c.block_name} ব্লকের অতিরিক্ত দায়িত্ব দেওয়া হয়েছে`)
+    } catch (e) {
+      toast(errMsg(e, 'দায়িত্ব দেওয়া যায়নি।'), 'err')
+    }
+    setBusyId(null)
+  }
+
+  async function dropCharge(p: Profile, c: BlockCharge) {
+    if (!(await confirm(`${p.full_name}-এর ${c.block_name} ব্লকের অতিরিক্ত দায়িত্ব তুলে নেবেন? আগের সূচিগুলো থেকে যাবে।`, { ok: 'তুলে নিন', danger: true }))) return
+    try {
+      await removeCharge(c.id)
+      setCharges((l) => l.filter((x) => x.id !== c.id))
+      toast('অতিরিক্ত দায়িত্ব তুলে নেওয়া হয়েছে')
+    } catch (e) {
+      toast(errMsg(e, 'বদলানো যায়নি।'), 'err')
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -191,6 +231,41 @@ export default function Admin() {
                   {p.email && <span><Icon name="mail" size={14} /> {p.email}</span>}
                   {p.mobile && <a href={`tel:${p.mobile}`}><Icon name="phone" size={14} /> {bn(p.mobile)}</a>}
                 </div>
+                {saao && p.active && (charges.some((c) => c.saao_id === p.id) || can) && (
+                  <div className="xcharge">
+                    <span className="xc-label"><Icon name="map" size={14} /> অতিরিক্ত দায়িত্ব</span>
+                    {charges.filter((c) => c.saao_id === p.id).map((c) => (
+                      <span key={c.id} className="chip xchip">
+                        {c.block_name} ব্লক
+                        {(c.from_date || c.to_date) && <small>{c.from_date ? fmtDayMonth(c.from_date) : 'শুরু'} – {c.to_date ? fmtDayMonth(c.to_date) : 'চলমান'}</small>}
+                        {can && <button type="button" aria-label={`${c.block_name} ব্লকের দায়িত্ব তুলে নিন`} onClick={() => void dropCharge(p, c)}><Icon name="x" size={14} /></button>}
+                      </span>
+                    ))}
+                    {!charges.some((c) => c.saao_id === p.id) && <span className="muted small">নেই</span>}
+                    {can && chargeFor !== p.id && (
+                      <button type="button" className="chip more" onClick={() => { setChargeFor(p.id); setCf({ block: '', from: '', to: '' }) }}>+ ব্লক যোগ</button>
+                    )}
+                    {can && chargeFor === p.id && (
+                      <div className="xc-form">
+                        {allBlocks.length ? (
+                          <select value={cf.block} onChange={(e) => setCf({ ...cf, block: e.target.value })} aria-label="ব্লক">
+                            <option value="">ব্লক বাছুন</option>
+                            {allBlocks.filter((b) => b !== p.block_name && !charges.some((c) => c.saao_id === p.id && c.block_name === b))
+                              .map((b) => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        ) : (
+                          <input value={cf.block} placeholder="ব্লকের নাম" aria-label="ব্লক" onChange={(e) => setCf({ ...cf, block: e.target.value })} />
+                        )}
+                        <label>শুরু<input type="date" value={cf.from} onChange={(e) => setCf({ ...cf, from: e.target.value })} /></label>
+                        <label>শেষ (ঐচ্ছিক)<input type="date" value={cf.to} onChange={(e) => setCf({ ...cf, to: e.target.value })} /></label>
+                        <div className="row">
+                          <button type="button" className="sm" disabled={busy} onClick={() => void giveCharge(p)}>দায়িত্ব দিন</button>
+                          <button type="button" className="ghost sm" onClick={() => setChargeFor(null)}>বাতিল</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {bad && <p className="warn-text small" style={{ margin: 0 }}>ভূমিকা "{roleTitle(p)}", কিন্তু পদবি "{p.designation ?? 'নেই'}"। সঠিক পদ বেছে নিন।</p>}
 
                 {can ? (

@@ -8,7 +8,7 @@ type DB = Record<string, Row[]>
 type Err = { message: string; code?: string }
 type Res = { data: any; error: Err | null; count?: number | null }
 
-const KEY = 'saao-demo-db-v5'
+const KEY = 'saao-demo-db-v6'
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
 
 function load(): DB {
@@ -86,6 +86,7 @@ function canRead(table: string, r: Row): boolean {
     case 'profiles': return r.id === uid || reviewer() || developer()
     case 'schedules': return r.saao_id === uid || reviewer()
     case 'farmer_groups': return r.saao_id === uid || reviewer()
+    case 'block_charges': return r.saao_id === uid || reviewer()
     case 'holidays': case 'topic_suggestions': case 'app_settings': return true
     default: {
       const s = scheduleOf(r.schedule_id)
@@ -99,13 +100,14 @@ const ownEditable = (scheduleId: string) => {
 }
 function canWrite(table: string, r: Row): boolean {
   switch (table) {
-    case 'holidays': case 'locations': case 'topic_suggestions': case 'app_settings': return reviewer()
+    case 'holidays': case 'locations': case 'topic_suggestions': case 'app_settings': case 'block_charges': return reviewer()
     case 'farmer_groups': return r.saao_id === uid && active()
     case 'schedule_groups': case 'schedule_day_notes': return ownEditable(r.schedule_id)
     case 'schedules': return r.saao_id === uid && r.status === 'draft' && active() // শুধু মোছার জন্য
     default: return false
   }
 }
+const periodEndOf = (start: string) => { const [y, m, d] = start.split('-').map(Number); return d <= 15 ? `${start.slice(0, 8)}15` : `${start.slice(0, 8)}${String(new Date(y, m, 0).getDate()).padStart(2, '0')}` }
 const RLS: Err = { message: 'new row violates row-level security policy' }
 const fail = (message: string): Err => ({ message })
 const DUP: Err = { message: 'duplicate key value violates unique constraint', code: '23505' }
@@ -150,15 +152,27 @@ function scheduleProblem(s: Row): string | null {
     .filter((g) => g.schedule_id === s.id && String(g.group_name ?? '').trim() && g.visit_date)
     .sort((a, b) => (a.visit_date < b.visit_date ? -1 : 1))
     .find((g) => badPlace(g as { visit_date: string }, p, hol))
-  if (!bad) return null
-  const [y, m, d] = String(bad.visit_date).split('-')
-  return `${d}/${m}/${y} তারিখে গ্রুপ ভিজিট রাখা যাবে না (ছুটি বা এই পক্ষের বাইরে)। "ছুটি অনুযায়ী আবার সাজান" চাপুন।`
+  if (bad) {
+    const [y, m, d] = String(bad.visit_date).split('-')
+    return `${d}/${m}/${y} তারিখে গ্রুপ ভিজিট রাখা যাবে না (ছুটি বা এই পক্ষের বাইরে)। "ছুটি অনুযায়ী আবার সাজান" চাপুন।`
+  }
+  // sql/09: একই দিনের একই বেলায় অন্য ব্লকের সূচিতে ভিজিট
+  const others = new Set(db.schedules.filter((o) => o.saao_id === s.saao_id && o.id !== s.id).map((o) => o.id))
+  for (const g of db.schedule_groups.filter((g) => g.schedule_id === s.id && String(g.group_name ?? '').trim() && g.visit_date)) {
+    const og = db.schedule_groups.find((x) => others.has(x.schedule_id) && x.visit_date === g.visit_date && x.slot === g.slot && String(x.group_name ?? '').trim())
+    if (og) {
+      const ob = db.schedules.find((o) => o.id === og.schedule_id)?.block_name || 'অন্য'
+      const [y, m, d] = String(g.visit_date).split('-')
+      return `${d}/${m}/${y} তারিখের ${g.slot === 1 ? 'সকাল' : 'দুপুর'} বেলায় ${ob} ব্লকের সূচিতেও ভিজিট আছে। একই সময়ে দুই ব্লকে থাকা যায় না, তারিখ বা বেলা বদলান।`
+    }
+  }
+  return null
 }
 
 function guardSchedule(old: Row, patch: Row): { row?: Row; err?: Err } {
   const r = role()
   const own = old.saao_id === uid
-  const next: Row = { ...old, ...patch, saao_id: old.saao_id, created_at: old.created_at }
+  const next: Row = { ...old, ...patch, saao_id: old.saao_id, created_at: old.created_at, block_name: old.block_name, extra_charge: old.extra_charge }
   const note = typeof next.approver_note === 'string' && next.approver_note.trim() ? next.approver_note.trim() : null
   const now = new Date().toISOString()
   if (r === 'developer') {
@@ -363,7 +377,14 @@ class Query implements PromiseLike<Res> {
         const day = Number(String(r.start_date).slice(8, 10))
         if (r.saao_id !== uid || !active() || (r.status ?? 'draft') !== 'draft') return { data: null, error: RLS }
         if (![1, 16].includes(day)) return { data: null, error: fail('পক্ষ শুরু হয় ১ বা ১৬ তারিখে') }
-        if (db.schedules.some((s) => s.saao_id === r.saao_id && s.start_date === r.start_date)) return { data: null, error: DUP }
+        // sql/09: ব্লক না দিলে নিজ ব্লক; অন্য ব্লকে অতিরিক্ত দায়িত্ব লাগবে
+        const own = (db.profiles.find((p) => p.id === r.saao_id)?.block_name as string | null) ?? ''
+        r.block_name = String(r.block_name ?? '').trim() || own
+        r.extra_charge = r.block_name !== own
+        if (r.extra_charge && !db.block_charges.some((c) => c.saao_id === r.saao_id && c.block_name === r.block_name
+          && (!c.from_date || c.from_date <= periodEndOf(r.start_date)) && (!c.to_date || c.to_date >= r.start_date)))
+          return { data: null, error: fail(`${r.block_name} ব্লকের অতিরিক্ত দায়িত্ব এই পক্ষে আপনার নামে নেই`) }
+        if (db.schedules.some((s) => s.saao_id === r.saao_id && s.start_date === r.start_date && (s.block_name ?? '') === r.block_name)) return { data: null, error: DUP }
         const now = new Date().toISOString()
         Object.assign(r, {
           id: newId('s_'), status: 'draft', approver_note: null, submitted_at: null, forwarded_by: null, forwarded_at: null,
@@ -386,7 +407,10 @@ class Query implements PromiseLike<Res> {
         if (t === 'topic_suggestions' && db[t].some((x) => x.topic === r.topic)) return { data: null, error: DUP }
         if (t === 'locations' && db[t].some((x) => x.kind === r.kind && x.name === r.name)) return { data: null, error: DUP }
         if (!keys) r.id = r.id ?? (t === 'farmer_groups' ? newId('fg_') : db[t].reduce((m, x) => Math.max(m, Number(x.id) || 0), 0) + 1)
-        if (t === 'farmer_groups') Object.assign(r, { active: r.active ?? true, sort: r.sort ?? 0, created_at: new Date().toISOString() })
+        if (t === 'farmer_groups') Object.assign(r, { active: r.active ?? true, sort: r.sort ?? 0, created_at: new Date().toISOString(),
+          block_name: r.block_name || ((db.profiles.find((p) => p.id === r.saao_id)?.block_name as string | null) ?? '') })
+        if (t === 'block_charges') Object.assign(r, { id: newId('bc_'), created_by: uid, created_at: new Date().toISOString() })
+        if (t === 'block_charges' && db.block_charges.some((c) => c.saao_id === r.saao_id && c.block_name === r.block_name)) return { data: null, error: DUP }
         if (t === 'topic_suggestions') Object.assign(r, { active: true, months: r.months ?? [] })
         if (t === 'schedule_groups') r.topics = r.topics ?? ['', '', '', '', '']
         if (this.placeTaken(r)) return { data: null, error: DUP }

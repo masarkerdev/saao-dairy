@@ -6,7 +6,7 @@ import type { HolidayMap } from './period'
 export interface Holiday { holiday_date: string; name: string }
 export interface Location { id: number; kind: 'union' | 'block'; name: string; sort: number }
 export interface Topic { id: number; topic: string; months: number[]; sort: number; active: boolean }
-export interface FarmerGroup { id: string; saao_id: string; group_name: string; address: string; mobile: string; sort: number; active: boolean }
+export interface FarmerGroup { id: string; saao_id: string; group_name: string; address: string; mobile: string; sort: number; active: boolean; block_name?: string | null }
 
 const must = <T,>(r: { data: T | null; error: { message: string } | null }): T => {
   if (r.error) throw r.error

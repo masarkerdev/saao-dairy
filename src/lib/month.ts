@@ -39,9 +39,11 @@ export function blankGroups(p: Period, holidays: HolidayMap): GroupMap {
 // {নাম}
 // উপসহকারী কৃষি কর্মকর্তা,
 // {ব্লক} ব্লক, {উপজেলা}
-export function signerLines(owner: Profile | null): string[] {
+// অতিরিক্ত দায়িত্বের ব্লকে: {ব্লক} ব্লক (অতিরিক্ত দায়িত্ব), {উপজেলা}
+export function signerLines(owner: Profile | null, block?: { block_name?: string | null; extra_charge?: boolean } | null): string[] {
   if (!owner) return []
-  const place = [owner.block_name && `${owner.block_name} ব্লক`, owner.upazila].filter(Boolean).join(', ')
+  const b = block?.block_name || owner.block_name
+  const place = [b && `${b} ব্লক${block?.extra_charge ? ' (অতিরিক্ত দায়িত্ব)' : ''}`, owner.upazila].filter(Boolean).join(', ')
   return [owner.full_name, 'উপসহকারী কৃষি কর্মকর্তা,', place].filter(Boolean)
 }
 
@@ -56,10 +58,14 @@ export async function loadMonth(
   const [hol, own, sch] = await Promise.all([
     listHolidays(periodStart(periods[0]), periodEnd(periods[1])).catch(() => []),
     supabase.from('profiles').select('*').eq('id', ownerId).maybeSingle(),
-    supabase.from('schedules').select('id,start_date').eq('saao_id', ownerId).in('start_date', periods.map(periodStart)),
+    supabase.from('schedules').select('id,start_date,block_name').eq('saao_id', ownerId).in('start_date', periods.map(periodStart)),
   ])
   const holidays = holidayMap(hol)
-  const byStart = new Map(((sch.data ?? []) as { id: string; start_date: string }[]).map((s) => [s.start_date, s.id]))
+  // একই মাসে একাধিক ব্লকের সূচি থাকতে পারে: শুধু এই ব্লকেরগুলো
+  const blk = live?.schedule.block_name
+  const byStart = new Map(((sch.data ?? []) as { id: string; start_date: string; block_name?: string }[])
+    .filter((s) => blk === undefined || (s.block_name ?? '') === blk)
+    .map((s) => [s.start_date, s.id]))
 
   const pages = await Promise.all(periods.map(async (p, i): Promise<PokkhoPage> => {
     const base = { period: p, label: i === 0 ? '১ম পক্ষ' : '২য় পক্ষ', dates: periodDates(p) }

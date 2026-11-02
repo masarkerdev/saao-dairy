@@ -112,6 +112,13 @@ export function defaultPlaces(p: Period, holidays: HolidayMap, count = 12): Plac
   return places.slice(0, count)
 }
 
+// অন্য ব্লকের সূচিতে নেওয়া বেলা বাদ দিয়ে জায়গা (key: "তারিখ|বেলা")
+export const placeKey = (d: string, slot: number) => `${d}|${slot}`
+export function freePlaces(p: Period, holidays: HolidayMap, taken: Set<string>, count = 12): Place[] {
+  if (!taken.size) return defaultPlaces(p, holidays, count)
+  return defaultPlaces(p, holidays, 99).filter((pl) => !taken.has(placeKey(pl.visit_date, pl.slot))).slice(0, count)
+}
+
 // কোনো গ্রুপের তারিখ ঠিক না থাকলে (ছুটি, বুধ/শুক্র/শনি, পক্ষের বাইরে) তা ধরা
 export function badPlace(place: { visit_date: string | null }, p: Period, holidays: HolidayMap): string | null {
   const d = place.visit_date
