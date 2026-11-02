@@ -32,7 +32,7 @@ h3 { font-size: 1rem; margin: 10px 0 4px; }
 a { color: var(--ac); }
 .center { min-height: 60vh; display: grid; place-items: center; padding: 16px; text-align: center; }
 .page { max-width: 960px; margin: 0 auto; padding: 16px; }
-.page.narrow, .narrow { max-width: 760px; margin-inline: auto; }
+.page.narrow, .narrow { max-width: 1050px; margin-inline: auto; }
 .page.wide { max-width: none; }
 .page > * + *, .narrow > .card + .card { margin-top: 12px; }
 .crumb { margin: 0 0 10px; font-size: .9rem; }
