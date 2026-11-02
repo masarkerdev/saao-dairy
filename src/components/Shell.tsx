@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { ROLE_SHORT, isDeveloper, isReviewer } from '../types'
+import { isDeveloper, isReviewer, roleTitle } from '../types'
 import Icon, { Avatar } from './Icon'
 
 // লগইনের পরের সব পেজ: উপরে অ্যাপ-বার (ডেস্কটপে মেনুসহ), মোবাইলে নিচে আইকনসহ মেনু
@@ -13,7 +13,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   if (!profile) return <>{children}</>
   const rev = isReviewer(profile.role)
   const links: [string, string, string][] = isDeveloper(profile.role)
-    ? [['/', 'অনুমোদন', 'review'], ['/profile', 'প্রোফাইল', 'user']]
+    ? [['/', 'ইউজার', 'groups'], ['/review', 'সব সূচি', 'review'], ['/settings', 'সেটিংস', 'settings'], ['/profile', 'প্রোফাইল', 'user']]
     : rev
     ? [['/', 'হোম', 'home'], ['/review', 'পর্যালোচনা', 'review'], ['/admin', 'ইউজার', 'groups'], ['/settings', 'সেটিংস', 'settings'], ['/profile', 'প্রোফাইল', 'user']]
     : [['/', 'হোম', 'home'], ['/groups', 'আমার গ্রুপ', 'groups'], ['/schedules/new', 'নতুন সূচি', 'calendarPlus'], ['/profile', 'প্রোফাইল', 'user']]
@@ -44,7 +44,7 @@ export default function Shell({ children }: { children: ReactNode }) {
           <Link to="/profile" className="me" aria-label="প্রোফাইল">
             <span className="me-text">
               <span className="wname">{profile.full_name}</span>
-              <span className="wrole">{ROLE_SHORT[profile.role]}</span>
+              <span className="wrole">{roleTitle(profile)}</span>
             </span>
             <Avatar name={profile.full_name} size={36} />
           </Link>

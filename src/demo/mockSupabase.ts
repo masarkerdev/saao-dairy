@@ -8,7 +8,7 @@ type DB = Record<string, Row[]>
 type Err = { message: string; code?: string }
 type Res = { data: any; error: Err | null; count?: number | null }
 
-const KEY = 'saao-demo-db-v4'
+const KEY = 'saao-demo-db-v5'
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
 
 function load(): DB {
@@ -34,8 +34,9 @@ const session = () => (uid ? { user: { id: uid, email: me()?.email } } : null)
 const emit = (e: string) => listeners.forEach((cb) => cb(e, session()))
 const me = () => db.profiles.find((p) => p.id === uid)
 const role = () => { const p = me(); return p && p.active ? p.role : null }
-const reviewer = () => role() === 'coadmin' || role() === 'admin'
 const developer = () => role() === 'developer'
+// sql/07: ডেভেলপারও সব দেখতে ও ঠিক করতে পারেন
+const reviewer = () => role() === 'coadmin' || role() === 'admin' || developer()
 const SAAO_T = 'উপসহকারী কৃষি কর্মকর্তা'
 const active = () => !!me()?.active
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 120))
@@ -109,6 +110,16 @@ const RLS: Err = { message: 'new row violates row-level security policy' }
 const fail = (message: string): Err => ({ message })
 const DUP: Err = { message: 'duplicate key value violates unique constraint', code: '23505' }
 
+// sql/07-এর fit_post: পদ অনুযায়ী ভূমিকা
+function fitPost(old: Row, next: Row): Err | null {
+  if (next.role === 'admin') next.designation = 'উপজেলা কৃষি অফিসার'
+  else if (next.role === 'coadmin' && (next.role !== old.role || next.designation !== old.designation)
+    && !['অতিরিক্ত কৃষি অফিসার', 'কৃষি সম্প্রসারণ কর্মকর্তা'].includes(next.designation))
+    return fail('কো-এডমিনের পদবি হতে হবে অতিরিক্ত কৃষি অফিসার বা কৃষি সম্প্রসারণ কর্মকর্তা')
+  if (next.role === 'admin' || next.role === 'coadmin') { next.block_name = null; next.union_name = null }
+  return null
+}
+
 // sql/06_developer.sql-এর protect_profile-এর মতো
 function protectProfile(old: Row, next: Row): Err | null {
   if (old.id === uid) {
@@ -117,6 +128,8 @@ function protectProfile(old: Row, next: Row): Err | null {
     return null
   }
   if (developer()) {
+    const fit = fitPost(old, next)
+    if (fit) return fit
     if (next.role === 'developer' && old.role !== 'developer') return fail('ডেভেলপার ভূমিকা অ্যাপ থেকে দেওয়া যায় না')
     if (old.role === 'developer') return fail('অন্য ডেভেলপারের একাউন্ট বদলানো যায় না')
     return null
@@ -148,6 +161,17 @@ function guardSchedule(old: Row, patch: Row): { row?: Row; err?: Err } {
   const next: Row = { ...old, ...patch, saao_id: old.saao_id, created_at: old.created_at }
   const note = typeof next.approver_note === 'string' && next.approver_note.trim() ? next.approver_note.trim() : null
   const now = new Date().toISOString()
+  if (r === 'developer') {
+    if (next.status !== old.status) {
+      if (['draft', 'submitted'].includes(next.status)) Object.assign(next, { forwarded_by: null, forwarded_at: null, approved_by: null, approved_at: null })
+      db.schedule_events.push({
+        id: db.schedule_events.reduce((m, e) => Math.max(m, e.id), 0) + 1,
+        schedule_id: old.id, actor_id: uid, from_status: old.status, to_status: next.status, note: note ?? 'ডেভেলপার সংশোধন', created_at: now,
+      })
+      next.updated_at = now
+    }
+    return { row: next }
+  }
   if (next.status === old.status) {
     if (own && ['draft', 'returned'].includes(old.status)) {
       for (const k of ['approver_note', 'submitted_at', 'forwarded_by', 'forwarded_at', 'approved_by', 'approved_at', 'returned_by', 'returned_at']) next[k] = old[k]

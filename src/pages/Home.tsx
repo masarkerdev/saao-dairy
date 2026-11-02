@@ -15,7 +15,7 @@ import type { Period } from '../lib/period'
 import { GROUP_COUNT, STATUS_SHORT, countFilled, deleteSchedule, errMsg, listMySchedules, schedulePeriod } from '../lib/schedules'
 import type { Schedule } from '../lib/schedules'
 import Admin from './Admin'
-import { isDeveloper, isReviewer } from '../types'
+import { isDeveloper, isReviewer, roleTitle } from '../types'
 
 function greet() {
   const h = new Date().getHours()
@@ -241,7 +241,7 @@ function ReviewerHome() {
           <div>
             <div className="hero-hi">{greet()},</div>
             <div className="hero-name">{profile?.full_name}</div>
-            <div className="hero-sub">{profile?.designation ?? ''}{profile?.designation ? ' · ' : ''}{profile?.upazila}{newUsers ? ` · ${bn(newUsers)}জন নতুন সাইনআপ অপেক্ষায়` : ''}</div>
+            <div className="hero-sub">{profile?.designation ? `${profile.designation} · ` : ''}{roleTitle(profile)} · {profile?.upazila}{newUsers ? ` · ${bn(newUsers)}জন নতুন সাইনআপ অপেক্ষায়` : ''}</div>
           </div>
         </div>
       </section>

@@ -10,7 +10,7 @@ import { mobileError, normalizeMobile } from '../lib/mobile'
 import { bn } from '../lib/period'
 import { errMsg } from '../lib/schedules'
 import { supabase } from '../lib/supabase'
-import { ROLE_LABEL, SAAO_TITLE } from '../types'
+import { SAAO_TITLE, isSaaoProfile, roleTitle } from '../types'
 
 // নিজের তথ্য দেখা ও বদলানো, পাসওয়ার্ড পরিবর্তন, লগআউট
 export default function Profile() {
@@ -29,7 +29,7 @@ export default function Profile() {
   }, [profile])
 
   if (!profile) return null
-  const isSaao = profile.role !== 'developer' && (!profile.designation || profile.designation === SAAO_TITLE)
+  const isSaao = isSaaoProfile(profile)
   const blocks = locs.filter((l) => l.kind === 'block')
   const unions = locs.filter((l) => l.kind === 'union')
   const mErr = f.mobile ? mobileError(f.mobile) : null
@@ -73,7 +73,7 @@ export default function Profile() {
           <h1>{profile.full_name}</h1>
           <div className="muted">{profile.role === 'developer' ? 'ডেভেলপার (সিস্টেম পরিচালনা)' : profile.designation ?? SAAO_TITLE}{profile.block_name && isSaao ? ` · ${profile.block_name} ব্লক` : ''}</div>
           <div className="chips-row">
-            <span className="badge st-approved">{ROLE_LABEL[profile.role].replace(/ \(.*\)$/, '')}</span>
+            <span className="badge st-approved">{roleTitle(profile)}</span>
             <span className="badge">{profile.upazila}</span>
           </div>
         </div>

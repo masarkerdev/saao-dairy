@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import EntryForm from '../components/EntryForm'
+import Icon from '../components/Icon'
 import { useFeedback } from '../components/Feedback'
 import ScheduleSheet from '../components/ScheduleSheet'
 import StatusSteps from '../components/StatusSteps'
@@ -37,6 +38,7 @@ export default function ScheduleEditor() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading')
   const [groups, setGroups] = useState<GroupMap>({})
   const [notes, setNotes] = useState<NoteMap>({})
+  const [devStatus, setDevStatus] = useState<Status | ''>('')
   const [holidays, setHolidays] = useState<HolidayMap>({})
   const [farmerGroups, setFarmerGroups] = useState<FarmerGroup[]>([])
   const [topicChoices, setTopicChoices] = useState<string[]>([])
@@ -371,6 +373,33 @@ export default function ScheduleEditor() {
             {editable
               ? <button type="button" onClick={() => void rearrange()}>ছুটি অনুযায়ী আবার সাজান</button>
               : <p className="muted small" style={{ margin: 0 }}>এসএএও-কে মন্তব্যসহ ফেরত দিলে তিনি ঠিক করতে পারবেন।</p>}
+          </div>
+        )}
+
+        {profile.role === 'developer' && (
+          <div className="card review dev-fix">
+            <strong><Icon name="settings" size={16} /> ডেভেলপার: অবস্থা ঠিক করুন</strong>
+            <p className="muted small" style={{ margin: 0 }}>ভুলে অনুমোদন বা ফেরত হলে এখান থেকে যেকোনো অবস্থায় নিতে পারবেন। ইতিহাসে লেখা থাকবে।</p>
+            <div className="row">
+              <select value={devStatus || s.status} onChange={(e) => setDevStatus(e.target.value as Status)} aria-label="নতুন অবস্থা">
+                {(Object.keys(STATUS_LABEL) as Status[]).map((k) => <option key={k} value={k}>{STATUS_LABEL[k]}</option>)}
+              </select>
+              <button type="button" disabled={busy || !devStatus || devStatus === s.status} onClick={async () => {
+                if (!devStatus || !(await confirm(`অবস্থা "${STATUS_LABEL[s.status]}" থেকে "${STATUS_LABEL[devStatus]}" করবেন?`))) return
+                setBusy(true)
+                try {
+                  const updated = await changeStatus(id!, [s.status], devStatus, reviewNote.trim() || 'ডেভেলপার সংশোধন')
+                  setData({ ...data, schedule: updated })
+                  setDevStatus('')
+                  setReviewNote('')
+                  refreshEvents()
+                  toast('অবস্থা বদলানো হয়েছে')
+                } catch (e) {
+                  toast(errMsg(e, 'বদলানো যায়নি।'), 'err')
+                }
+                setBusy(false)
+              }}>অবস্থা বদলান</button>
+            </div>
           </div>
         )}
 

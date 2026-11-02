@@ -75,7 +75,7 @@ export function seed(): Record<string, Row[]> {
   const profiles = [
     P('u_uao', 'মোঃ আবদুল করিম', 'admin', { mobile: '01711000001', designation: 'উপজেলা কৃষি অফিসার' }),
     P('u_aao', 'মাহফুজ আহমেদ সরকার', 'coadmin', { mobile: '01711000002', designation: 'অতিরিক্ত কৃষি অফিসার' }),
-    P('u_aeo', 'নাসরিন আক্তার', 'coadmin', { mobile: '01711000003', designation: 'কৃষি সম্প্রসারণ কর্মকর্তা' }),
+    P('u_aeo', 'নাসরিন আক্তার', 'coadmin', { mobile: '01711000003', designation: 'উপসহকারী কৃষি কর্মকর্তা', block_name: 'এয়াছিন নগর' }), // ইচ্ছে করে ভুল: ডেভেলপার ঠিক করবেন
     P('u_rahim', 'মোঃ রহিম উদ্দিন', 'saao', { block_name: 'নোয়াপাড়া', union_name: 'নোয়াপাড়া', mobile: '01815123456' }),
     P('u_sumi', 'সুমি দাশ', 'saao', { block_name: 'গহিরা', union_name: 'গহিরা', mobile: '01819234567' }),
     P('u_kamal', 'কামাল হোসেন', 'saao', { block_name: 'পাহাড়তলী', union_name: 'পাহাড়তলী', mobile: '01712345678' }),
