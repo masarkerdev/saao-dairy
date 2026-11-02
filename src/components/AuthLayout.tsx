@@ -2,24 +2,20 @@ import { useEffect, useState } from 'react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import Icon from './Icon'
 
-// লগইন/সাইনআপ/অপেক্ষার পেজ: বাঁয়ে পরিচিতি (মোবাইলে উপরে), ডানে ফর্ম
+// লগইন/সাইনআপ/অপেক্ষার পেজ: বাঁয়ে অফিসের পরিচয় (মোবাইলে উপরে), ডানে ফর্ম
 export default function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   useEffect(() => { window.scrollTo(0, 0) }, [title])
   return (
     <div className="auth-wrap">
       <aside className="auth-side">
         <div className="auth-brand">
-          <span className="mark lg"><Icon name="leaf" size={26} /></span>
-          <div>
-            <div className="bname">পাক্ষিক ভ্রমণসূচী</div>
-            <div className="bsub">রাউজান উপজেলা কৃষি অফিস</div>
+          <span className="mark lg"><Icon name="leaf" size={28} /></span>
+          <div className="ab-text">
+            <div className="ab-name">পাক্ষিক ভ্রমনসূচি</div>
+            <div className="ab-office">উপজেলা কৃষি অফিসারের কার্যালয়</div>
+            <div className="ab-place">রাউজান, চট্টগ্রাম</div>
           </div>
         </div>
-        <ul className="auth-points">
-          <li><Icon name="calendar" size={18} /> ১-১৫ ও ১৬-শেষ পক্ষের ভিজিট সূচি, সরকারি ছুটি মেনে</li>
-          <li><Icon name="review" size={18} /> জমা, যাচাই ও অনুমোদন এক জায়গায়</li>
-          <li><Icon name="file" size={18} /> ফর্মটি PDF ও Word-এ এক ক্লিকে</li>
-        </ul>
         <svg className="auth-field" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
           <path d="M0 90 Q100 60 200 85 T400 75 V120 H0z" />
           <path d="M0 105 Q120 80 230 100 T400 95 V120 H0z" />

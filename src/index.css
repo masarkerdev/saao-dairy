@@ -110,13 +110,13 @@ label.check input { margin-top: 6px; }
 
 /* লগইন / সাইনআপ */
 .auth-wrap { min-height: 100vh; display: grid; grid-template-columns: minmax(300px, 5fr) 7fr; }
-.auth-side { position: relative; overflow: hidden; background: radial-gradient(120% 90% at 0% 0%, #2f8a4c 0%, #1f6b3a 45%, #134a27 100%); color: #f1f7ef; padding: 48px 44px; display: flex; flex-direction: column; gap: 36px; }
-.auth-brand { display: flex; align-items: center; gap: 14px; }
-.auth-brand .bname { font-size: 1.5rem; white-space: normal; }
-.auth-brand .bsub { color: rgba(241,247,239,.75); font-size: .88rem; white-space: normal; }
-.auth-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 1; }
-.auth-points li { display: flex; gap: 12px; align-items: flex-start; font-size: .98rem; line-height: 1.5; }
-.auth-points .ico { margin-top: 2px; padding: 7px; box-sizing: content-box; background: rgba(255,255,255,.12); border-radius: 10px; }
+.auth-side { position: relative; overflow: hidden; background: radial-gradient(120% 90% at 0% 0%, #2f8a4c 0%, #1f6b3a 45%, #134a27 100%); color: #f1f7ef; padding: 48px 44px; display: flex; flex-direction: column; justify-content: center; }
+.auth-brand { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; margin-bottom: 12vh; }
+.ab-text { display: flex; flex-direction: column; min-width: 0; }
+.ab-name { font-family: var(--display); font-size: 2.1rem; line-height: 1.2; color: #fff; }
+.ab-office { font-size: 1.05rem; margin-top: 6px; color: rgba(241,247,239,.92); }
+.ab-place { font-size: .95rem; color: rgba(241,247,239,.75); }
+.mark.lg { width: 64px; height: 64px; border-radius: 18px; }
 .auth-field { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 34%; }
 .auth-field path:first-child { fill: rgba(240, 200, 70, .22); }
 .auth-field path:last-child { fill: rgba(255,255,255,.08); }
@@ -161,13 +161,24 @@ button.btn-lg, .btn-lg { padding: 13px 20px; font-size: 1rem; font-weight: 600; 
 .pending-box p { margin: 0; color: var(--ink); }
 @media (max-width: 860px) {
   .auth-wrap { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .auth-side { padding: 24px 20px 40px; gap: 0; }
-  .auth-points, .auth-field { display: none; }
-  .auth-main { align-items: flex-start; margin-top: -22px; padding: 0 12px 32px; }
+  .auth-side { padding: calc(28px + env(safe-area-inset-top, 0px)) 20px 48px; }
+  .auth-field { display: none; }
+  .auth-brand { margin-bottom: 0; gap: 14px; }
+  .ab-name { font-size: 1.55rem; }
+  .ab-office { font-size: .92rem; margin-top: 4px; }
+  .ab-place { font-size: .84rem; }
+  .mark.lg { width: 52px; height: 52px; border-radius: 15px; }
+  .auth-main { align-items: flex-start; margin-top: -26px; padding: 0 12px calc(32px + env(safe-area-inset-bottom, 0px)); position: relative; z-index: 1; }
   .auth-card { background: var(--card); border-radius: 18px; padding: 22px 18px; box-shadow: 0 6px 24px rgba(0,0,0,.08); border: 1px solid var(--line); }
   .auth-card h1 { font-size: 1.5rem; }
 }
-@media (max-width: 420px) { .desig { grid-template-columns: 1fr; } }
+@media (max-width: 420px) {
+  .desig { grid-template-columns: 1fr; }
+  .auth-side { padding-inline: 16px; }
+  .ab-name { font-size: 1.35rem; }
+  .auth-main { padding-inline: 8px; }
+  .auth-card { padding: 20px 14px; }
+}
 
 /* প্রোফাইল */
 .profile-head { display: flex; gap: 18px; align-items: center; background: linear-gradient(120deg, var(--ac-soft), var(--card) 70%); }
