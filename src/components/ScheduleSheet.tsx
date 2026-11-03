@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { WEEKDAYS, bn, dayKind, dow, fmtDate, toISO } from '../lib/period'
 import type { HolidayMap } from '../lib/period'
 import type { PokkhoPage } from '../lib/month'
@@ -9,6 +9,24 @@ import { displayNumbers, g2 } from '../lib/schedules'
 export const SHEET_W_MM = 281
 export const SHEET_H_MM = 194
 const MM = 96 / 25.4 // ১ মিমি = কত পিক্সেল
+
+// পর্দায় লেখা ১৩px। প্রিন্ট ও PDF-এ এক পক্ষ এক পাতায় রাখতে লেখা বেশি হলে আকার কমে (১৩px থেকে ৭px পর্যন্ত)।
+export const SCREEN_FS = 13
+export function fitSheet(el: HTMLElement) {
+  const limit = SHEET_H_MM * MM - 2
+  let fs = SCREEN_FS
+  el.style.setProperty('--fs', `${fs}px`)
+  while (el.scrollHeight > limit && fs > 7) {
+    fs -= 0.25
+    el.style.setProperty('--fs', `${fs}px`)
+  }
+  return fs
+}
+export function unfitSheet(el: HTMLElement) {
+  el.style.setProperty('--fs', `${SCREEN_FS}px`)
+}
+export const fitAll = (root: ParentNode = document) => root.querySelectorAll<HTMLElement>('.sheet').forEach(fitSheet)
+export const unfitAll = (root: ParentNode = document) => root.querySelectorAll<HTMLElement>('.sheet').forEach(unfitSheet)
 
 interface Props {
   page: PokkhoPage
@@ -26,18 +44,18 @@ export default function ScheduleSheet({ page, monthName, holidays, signer }: Pro
   const s = page.schedule
   const approvedNote = s?.status === 'approved' && s.approved_at ? `অনলাইনে অনুমোদিত: ${fmtDate(toISO(new Date(s.approved_at)))}` : ''
 
-  // লেখা বেশি হলে আকার ছোট করে এক পাতায় আনা (১১px থেকে ৭px পর্যন্ত)
+  // পর্দায় সবসময় ১৩px
   useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const limit = SHEET_H_MM * MM - 2
-    let fs = 11
-    el.style.setProperty('--fs', `${fs}px`)
-    while (el.scrollHeight > limit && fs > 7) {
-      fs -= 0.25
-      el.style.setProperty('--fs', `${fs}px`)
-    }
+    if (ref.current) unfitSheet(ref.current)
   })
+  // ব্রাউজারের প্রিন্টে (Ctrl+P সহ) এক পাতায় আঁটানো, প্রিন্ট শেষে আবার ১৩px
+  useEffect(() => {
+    const before = () => { if (ref.current) fitSheet(ref.current) }
+    const after = () => { if (ref.current) unfitSheet(ref.current) }
+    window.addEventListener('beforeprint', before)
+    window.addEventListener('afterprint', after)
+    return () => { window.removeEventListener('beforeprint', before); window.removeEventListener('afterprint', after) }
+  }, [])
 
   // কোন তারিখে কোন গ্রুপ (সকাল/দুপুর)
   const at: Record<string, { 1?: number; 2?: number }> = {}
@@ -61,6 +79,7 @@ export default function ScheduleSheet({ page, monthName, holidays, signer }: Pro
       <td className="gi">
         <div className="gno">গ্রুপ নং -{g2(displayNo[no] ?? no)}</div>
         {g?.group_name && <div>{g.group_name}</div>}
+        {g?.president && <div>সভাপতি: {g.president}</div>}
         {g?.address && <div>{g.address}</div>}
         {g?.mobile && <div>মোবাইল: {bn(g.mobile)}</div>}
       </td>

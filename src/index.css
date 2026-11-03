@@ -314,7 +314,7 @@ input[type="search"] { font-size: 16px; }
    .paper = পর্দায় কাগজের চেহারা; .sheet = ঠিক ২৮১ মিমি চওড়া লেখার অংশ (A4 আড়াআড়ি, ৮ মিমি মার্জিন) */
 .wrap { overflow-x: auto; padding: 4px 0 12px; }
 .paper { background: #fff; width: calc(281mm + 16mm); margin: 0 auto 16px; padding: 8mm; box-shadow: 0 1px 6px #0003; }
-.sheet { --fs: 11px; width: 281mm; background: #fff; color: #000; font-family: var(--font); font-size: var(--fs); line-height: 1.32; }
+.sheet { --fs: 13px; width: 281mm; background: #fff; color: #000; font-family: var(--font); font-size: var(--fs); line-height: 1.32; }
 .sheet .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: calc(var(--fs) * 1.15); margin-bottom: 2px; }
 .sheet .top s { text-decoration: line-through; }
 .sheet .top s.keep { text-decoration: none; }
@@ -541,6 +541,13 @@ input[type="search"] { font-size: 16px; }
 .xc-form label { font-size: .75rem; color: var(--muted); gap: 2px; }
 .xc-form input, .xc-form select { padding: 6px 8px; font-size: .9rem; }
 .block-seg { flex-wrap: wrap; }
+
+/* নতুন গ্রুপ ফর্ম */
+.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 680px) { .three { grid-template-columns: 1fr 1fr; } .three > :first-child { grid-column: 1 / -1; } }
+@media (max-width: 420px) { .three { grid-template-columns: 1fr; } }
+.addr-preview { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px; font-size: .9rem; line-height: 1.45; background: var(--bg); }
+.addr-preview .muted { display: block; margin-bottom: 4px; }
 
 @media print {
   @page { size: A4 landscape; margin: 8mm; }

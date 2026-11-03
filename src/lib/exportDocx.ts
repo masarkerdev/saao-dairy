@@ -76,6 +76,7 @@ export async function monthToDocx(m: MonthData, signer: string[]): Promise<Blob>
       const g = page.groups[no]
       const out = [para(`গ্রুপ নং -${g2(displayNo[no] ?? no)}`)]
       if (g?.group_name) out.push(para(g.group_name))
+      if (g?.president) out.push(para(`সভাপতি: ${g.president}`))
       if (g?.address) out.push(para(g.address))
       if (g?.mobile) out.push(para(`মোবাইল: ${bn(g.mobile)}`))
       return out

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import EntryForm from '../components/EntryForm'
 import Icon from '../components/Icon'
 import { useFeedback } from '../components/Feedback'
-import ScheduleSheet from '../components/ScheduleSheet'
+import ScheduleSheet, { fitAll, unfitAll } from '../components/ScheduleSheet'
 import StatusSteps from '../components/StatusSteps'
 import { useAuth } from '../lib/auth'
 import { holidayMap, listFarmerGroups, listHolidays, listTopics, saveFarmerGroup, topicsForMonth } from '../lib/catalog'
@@ -182,7 +182,7 @@ export default function ScheduleEditor() {
     toast('তারিখগুলো ছুটি অনুযায়ী সাজানো হয়েছে')
   }
 
-  async function onNewFarmerGroup(g: { group_name: string; address: string; mobile: string }) {
+  async function onNewFarmerGroup(g: { group_name: string; president: string; address: string; mobile: string }) {
     if (!profile) return null
     try {
       const fg = await saveFarmerGroup({ ...g, saao_id: profile.id, sort: farmerGroups.length + 1, block_name: data?.schedule.block_name || null })
@@ -268,7 +268,13 @@ export default function ScheduleEditor() {
         const { sheetsToPdf } = await import('../lib/exportPdf')
         const els = Array.from(sheetsRef.current?.querySelectorAll<HTMLElement>('.sheet') ?? [])
         if (els.length !== 2) throw new Error('ফর্ম এখনো তৈরি হয়নি, আবার চেষ্টা করুন')
-        await saveBlob(await sheetsToPdf(els), `${name}.pdf`)
+        // PDF-এ প্রতিটি পক্ষ এক পাতায়: দরকার হলে লেখা ছোট করে ছবি তোলা, তারপর পর্দায় আবার ১৩px
+        if (sheetsRef.current) fitAll(sheetsRef.current)
+        try {
+          await saveBlob(await sheetsToPdf(els), `${name}.pdf`)
+        } finally {
+          if (sheetsRef.current) unfitAll(sheetsRef.current)
+        }
       } else {
         const { monthToDocx } = await import('../lib/exportDocx')
         const live = { ...m, pages: m.pages.map((pg) => pg.schedule?.id === data?.schedule.id ? { ...pg, groups: groupsRef.current, notes: notesRef.current } : pg) as MonthData['pages'] }

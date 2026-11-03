@@ -7,13 +7,13 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { blocksFor, listCharges } from '../lib/blocks'
 import type { BlockCharge } from '../lib/blocks'
-import { deleteFarmerGroup, listFarmerGroups, saveFarmerGroup } from '../lib/catalog'
+import { deleteFarmerGroup, groupAddress, listFarmerGroups, listLocations, saveFarmerGroup } from '../lib/catalog'
 import type { FarmerGroup } from '../lib/catalog'
 import { mobileError } from '../lib/mobile'
 import { bn } from '../lib/period'
 import { errMsg } from '../lib/schedules'
 
-const blank = { group_name: '', address: '', mobile: '' }
+const blank = { group_name: '', president: '', village: '', union_name: '', block_name: '', mobile: '', address: '' }
 
 // আমার কৃষক গ্রুপ: একবার লিখে রাখলে প্রতি পক্ষের সূচিতে শুধু বাছাই
 export default function Groups() {
@@ -29,10 +29,12 @@ export default function Groups() {
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
+  const [unions, setUnions] = useState<string[]>([])
 
   useEffect(() => {
     if (profile) listFarmerGroups(profile.id).then(setList).catch(() => setList([]))
     if (profile) listCharges(profile.id).then(setCharges).catch(() => setCharges([]))
+    listLocations().then((l) => setUnions(l.filter((x) => x.kind === 'union').map((x) => x.name))).catch(() => setUnions([]))
   }, [profile])
 
   if (!profile) return null
@@ -51,8 +53,12 @@ export default function Groups() {
     if (me) return setError(me)
     setBusy(true)
     try {
+      const blk = form.block_name || cur.name
+      // গ্রাম/ইউনিয়ন/ব্লক থেকে ঠিকানা; পুরোনো গ্রুপে এগুলো না থাকলে আগের ঠিকানাই থাকে
+      const address = groupAddress({ village: form.village, union_name: form.union_name, block_name: blk }) || form.address
       const saved = await saveFarmerGroup({
-        ...form, id: editId ?? undefined, saao_id: profile!.id, block_name: cur.name || null,
+        group_name: form.group_name, president: form.president, village: form.village, union_name: form.union_name, mobile: form.mobile,
+        address, id: editId ?? undefined, saao_id: profile!.id, block_name: blk || null,
         sort: editId ? items.find((x) => x.id === editId)?.sort ?? 0 : items.length + 1,
       })
       setList((l) => editId ? (l ?? []).map((x) => (x.id === saved.id ? saved : x)) : [...(l ?? []), saved])
@@ -104,8 +110,8 @@ export default function Groups() {
 
   const activeCount = items.filter((x) => x.active).length
   const needle = q.trim().toLowerCase()
-  const shown = needle ? items.filter((g) => `${g.group_name} ${g.address} ${g.mobile} ${bn(g.mobile)}`.toLowerCase().includes(needle)) : items
-  const startEdit = (g: FarmerGroup) => { setEditId(g.id); setForm({ group_name: g.group_name, address: g.address, mobile: g.mobile }); setError(''); setOpen(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const shown = needle ? items.filter((g) => `${g.group_name} ${g.president ?? ''} ${g.village ?? ''} ${g.address} ${g.mobile} ${bn(g.mobile)}`.toLowerCase().includes(needle)) : items
+  const startEdit = (g: FarmerGroup) => { setEditId(g.id); setForm({ group_name: g.group_name, president: g.president ?? '', village: g.village ?? '', union_name: g.union_name ?? '', block_name: g.block_name || cur.name, mobile: g.mobile, address: g.address }); setError(''); setOpen(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const close = () => { setOpen(false); setEditId(null); setForm(blank); setError('') }
 
   return (
@@ -142,9 +148,40 @@ export default function Groups() {
           <form onSubmit={submit} className="auth-form">
             <Field label="গ্রুপের নাম" icon="groups" autoFocus value={form.group_name} placeholder="যেমন: নোয়াপাড়া সবুজ কৃষক গ্রুপ" onChange={(e) => setForm({ ...form, group_name: e.target.value })} />
             <div className="two">
-              <Field label="ঠিকানা (গ্রাম, ইউনিয়ন)" icon="map" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-              <Field label="সভাপতি/যোগাযোগের মোবাইল" icon="phone" type="tel" inputMode="tel" value={form.mobile}
+              <Field label="সভাপতির নাম" icon="user" value={form.president} onChange={(e) => setForm({ ...form, president: e.target.value })} />
+              <Field label="সভাপতির মোবাইল" icon="phone" type="tel" inputMode="tel" value={form.mobile}
                 error={form.mobile ? mobileError(form.mobile) : null} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
+            </div>
+            <div className="three">
+              <Field label="গ্রাম" icon="map" value={form.village} onChange={(e) => setForm({ ...form, village: e.target.value })} />
+              <label className="field">
+                <span className="flabel">ইউনিয়ন</span>
+                {unions.length ? (
+                  <select value={form.union_name} onChange={(e) => setForm({ ...form, union_name: e.target.value })}>
+                    <option value="">বাছুন</option>
+                    {form.union_name && !unions.includes(form.union_name) && <option value={form.union_name}>{form.union_name}</option>}
+                    {unions.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                ) : (
+                  <span className="finput"><input value={form.union_name} onChange={(e) => setForm({ ...form, union_name: e.target.value })} /></span>
+                )}
+              </label>
+              <label className="field">
+                <span className="flabel">ব্লক</span>
+                <select value={form.block_name || cur.name} onChange={(e) => setForm({ ...form, block_name: e.target.value })}>
+                  {blocks.map((b) => <option key={b.name} value={b.name}>{b.name || 'নিজ ব্লক'}{b.extra ? ' (অতিরিক্ত দায়িত্ব)' : ''}</option>)}
+                </select>
+              </label>
+            </div>
+            {editId && !form.village && !form.union_name && form.address && (
+              <p className="muted small" style={{ margin: 0 }}>আগের ঠিকানা: {form.address}। গ্রাম ও ইউনিয়ন দিলে প্রিন্টে নতুনটা বসবে।</p>
+            )}
+            <div className="addr-preview">
+              <span className="muted small">প্রিন্টে যেভাবে দেখাবে</span>
+              <div><b>{form.group_name || 'গ্রুপের নাম'}</b></div>
+              {form.president && <div>সভাপতি: {form.president}</div>}
+              <div>{groupAddress({ village: form.village, union_name: form.union_name, block_name: form.block_name || cur.name }) || form.address || 'গ্রাম, ইউনিয়ন, ব্লক'}</div>
+              {form.mobile && <div>মোবাইল: {bn(form.mobile)}</div>}
             </div>
             {error && <p className="form-err">{error}</p>}
             <div className="row">
@@ -158,7 +195,7 @@ export default function Groups() {
       {items.length > 3 && (
         <label className="finput search-box">
           <Icon name="search" size={18} />
-          <input type="search" placeholder="নাম, গ্রাম বা মোবাইল দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} aria-label="গ্রুপ খুঁজুন" />
+          <input type="search" placeholder="নাম, সভাপতি, গ্রাম বা মোবাইল দিয়ে খুঁজুন" value={q} onChange={(e) => setQ(e.target.value)} aria-label="গ্রুপ খুঁজুন" />
         </label>
       )}
 
@@ -181,6 +218,7 @@ export default function Groups() {
               <span className="gnum">{bn(i + 1)}</span>
               <div className="gbody">
                 <strong>{g.group_name}</strong>
+                {g.president && <span className="small"><Icon name="user" size={14} /> সভাপতি: {g.president}</span>}
                 <span className="muted small"><Icon name="map" size={14} /> {g.address || 'ঠিকানা নেই'}</span>
                 {g.mobile
                   ? <a className="call" href={`tel:${g.mobile}`}><Icon name="phone" size={14} /> {bn(g.mobile)}</a>

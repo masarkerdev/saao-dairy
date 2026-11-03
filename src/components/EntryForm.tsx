@@ -20,7 +20,7 @@ interface Props {
   onGroup: (no: number, patch: Partial<GroupInfo>) => void
   onMove: (no: number, place: { visit_date: string; slot: 1 | 2 } | null) => void
   onNote: (date: string, value: string) => void
-  onNewFarmerGroup: (g: { group_name: string; address: string; mobile: string }) => Promise<FarmerGroup | null>
+  onNewFarmerGroup: (g: { group_name: string; president: string; address: string; mobile: string }) => Promise<FarmerGroup | null>
   otherTaken?: Set<string> // নিজের অন্য ব্লকের সূচিতে নেওয়া বেলা
 }
 
@@ -29,7 +29,7 @@ const shortDay = (d: string) => `${WEEKDAYS[dow(d)]}, ${fmtDayMonth(d)}`
 
 export default function EntryForm(p: Props) {
   const [adding, setAdding] = useState<number | null>(null)
-  const [draft, setDraft] = useState({ group_name: '', address: '', mobile: '' })
+  const [draft, setDraft] = useState({ group_name: '', president: '', address: '', mobile: '' })
   const [addErr, setAddErr] = useState('')
 
   const order = groupOrder(p.groups)
@@ -53,9 +53,9 @@ export default function EntryForm(p: Props) {
     if (me) return setAddErr(me)
     const fg = await p.onNewFarmerGroup(draft)
     if (fg) {
-      p.onGroup(no, { group_name: fg.group_name, address: fg.address, mobile: fg.mobile, farmer_group_id: fg.id })
+      p.onGroup(no, { group_name: fg.group_name, president: fg.president ?? '', address: fg.address, mobile: fg.mobile, farmer_group_id: fg.id })
       setAdding(null)
-      setDraft({ group_name: '', address: '', mobile: '' })
+      setDraft({ group_name: '', president: '', address: '', mobile: '' })
     }
   }
 
@@ -104,7 +104,7 @@ export default function EntryForm(p: Props) {
                 const v = e.target.value
                 if (v === '__new') { setAdding(no); setAddErr(''); return }
                 const fg = activeFG.find((f) => f.id === v)
-                if (fg) p.onGroup(no, { group_name: fg.group_name, address: fg.address, mobile: fg.mobile, farmer_group_id: fg.id })
+                if (fg) p.onGroup(no, { group_name: fg.group_name, president: fg.president ?? '', address: fg.address, mobile: fg.mobile, farmer_group_id: fg.id })
                 else p.onGroup(no, { farmer_group_id: null })
               }}
             >
@@ -118,6 +118,7 @@ export default function EntryForm(p: Props) {
         {adding === no && (
           <div className="addfg">
             <label>গ্রুপের নাম<input value={draft.group_name} onChange={(e) => setDraft({ ...draft, group_name: e.target.value })} /></label>
+            <label>সভাপতির নাম<input value={draft.president} onChange={(e) => setDraft({ ...draft, president: e.target.value })} /></label>
             <label>ঠিকানা (গ্রাম, ইউনিয়ন)<input value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} /></label>
             <label>মোবাইল<input type="tel" inputMode="tel" value={draft.mobile} onChange={(e) => setDraft({ ...draft, mobile: e.target.value })} /></label>
             {addErr && <p className="err small">{addErr}</p>}
@@ -139,9 +140,14 @@ export default function EntryForm(p: Props) {
           </label>
         </div>
         {mErr && <p className="err small">{mErr}</p>}
-        <label>ঠিকানা (গ্রাম, ইউনিয়ন)
-          <input readOnly={p.readOnly} value={g.address} onChange={(e) => p.onGroup(no, { address: e.target.value })} />
-        </label>
+        <div className="two">
+          <label>সভাপতির নাম
+            <input readOnly={p.readOnly} value={g.president ?? ''} onChange={(e) => p.onGroup(no, { president: e.target.value })} />
+          </label>
+          <label>ঠিকানা (গ্রাম, ইউনিয়ন, ব্লক)
+            <input readOnly={p.readOnly} value={g.address} onChange={(e) => p.onGroup(no, { address: e.target.value })} />
+          </label>
+        </div>
 
         <TopicPicker idBase={`t${no}`} value={g.topics} suggestions={p.topicChoices} readOnly={p.readOnly}
           onChange={(topics) => p.onGroup(no, { topics })} />

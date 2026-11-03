@@ -28,6 +28,7 @@ export interface Schedule {
 // একটি কৃষক গ্রুপের ভিজিট (ছবির ফর্মের এক ঘর + পাশের ৫টি আলোচ্য বিষয়)
 export interface GroupInfo {
   group_name: string
+  president: string // সভাপতির নাম
   address: string
   mobile: string
   topics: string[] // ঠিক ৫টি ঘর
@@ -61,7 +62,7 @@ export const STATUS_SHORT: Record<Status, string> = {
 export const GROUP_COUNT = 12
 export const g2 = (n: number) => bn(String(n).padStart(2, '0'))
 export const emptyGroup = (): GroupInfo => ({
-  group_name: '', address: '', mobile: '', topics: ['', '', '', '', ''], visit_date: null, slot: null, farmer_group_id: null,
+  group_name: '', president: '', address: '', mobile: '', topics: ['', '', '', '', ''], visit_date: null, slot: null, farmer_group_id: null,
 })
 export const schedulePeriod = (s: Pick<Schedule, 'start_date'>): Period => periodOf(s.start_date)
 
@@ -114,7 +115,7 @@ export async function listMySchedules(userId: string): Promise<Schedule[]> {
 }
 
 const rowOf = (scheduleId: string, no: number, g: GroupInfo) => ({
-  schedule_id: scheduleId, group_no: no, group_name: g.group_name, address: g.address, mobile: normalizeMobile(g.mobile),
+  schedule_id: scheduleId, group_no: no, group_name: g.group_name, president: g.president ?? '', address: g.address, mobile: normalizeMobile(g.mobile),
   topics: g.topics, visit_date: g.visit_date, slot: g.slot, farmer_group_id: g.farmer_group_id,
 })
 
@@ -149,7 +150,7 @@ export async function createSchedule(userId: string, p: Period, holidays: Holida
     const fg = prefill[i]
     const g: GroupInfo = {
       ...emptyGroup(),
-      group_name: fg?.group_name ?? '', address: fg?.address ?? '', mobile: fg?.mobile ?? '', farmer_group_id: fg?.id ?? null,
+      group_name: fg?.group_name ?? '', president: fg?.president ?? '', address: fg?.address ?? '', mobile: fg?.mobile ?? '', farmer_group_id: fg?.id ?? null,
       visit_date: places[i]?.visit_date ?? null, slot: places[i]?.slot ?? null,
     }
     return rowOf(created.id, i + 1, g)
@@ -177,7 +178,7 @@ export async function loadSchedule(id: string): Promise<LoadedSchedule | null> {
   if (!s) return null
   const schedule = s as Schedule
   const [g, n, o] = await Promise.all([
-    supabase.from('schedule_groups').select('group_no,group_name,address,mobile,topics,visit_date,slot,farmer_group_id').eq('schedule_id', id),
+    supabase.from('schedule_groups').select('group_no,group_name,president,address,mobile,topics,visit_date,slot,farmer_group_id').eq('schedule_id', id),
     supabase.from('schedule_day_notes').select('note_date,advisory_note').eq('schedule_id', id),
     supabase.from('profiles').select('*').eq('id', schedule.saao_id).maybeSingle(),
   ])
@@ -189,7 +190,7 @@ export async function loadSchedule(id: string): Promise<LoadedSchedule | null> {
     const t = [...((r.topics as string[] | null) ?? [])]
     while (t.length < 5) t.push('')
     groups[r.group_no] = {
-      group_name: r.group_name ?? '', address: r.address ?? '', mobile: r.mobile ?? '', topics: t.slice(0, 5),
+      group_name: r.group_name ?? '', president: r.president ?? '', address: r.address ?? '', mobile: r.mobile ?? '', topics: t.slice(0, 5),
       visit_date: r.visit_date ?? null, slot: (r.slot as 1 | 2 | null) ?? null, farmer_group_id: r.farmer_group_id ?? null,
     }
   }

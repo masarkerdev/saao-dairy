@@ -20,6 +20,7 @@ const UNIONS = ['বাগোয়ান', 'বিনাজুরী', 'চি�
 const BLOCKS = ['নোয়াপাড়া', 'গহিরা', 'পাহাড়তলী', 'বিনাজুরী', 'হলদিয়া']
 
 const VILLAGES = ['নোয়াপাড়া', 'পশ্চিম গুজরা', 'হলদিয়া', 'চিকদাইর', 'ডাবুয়া', 'গহিরা', 'বিনাজুরী', 'কদলপুর', 'বাগোয়ান', 'উরকিরচর', 'নোয়াজিশপুর', 'পাহাড়তলী', 'পূর্ব গুজরা', 'রাউজান']
+const PRESIDENTS = ['মোঃ আবুল কালাম', 'রফিকুল ইসলাম', 'নুরুল আলম', 'শাহনাজ বেগম', 'জসিম উদ্দিন', 'আবদুর রহমান', 'মনোয়ারা খাতুন', 'সাইফুল ইসলাম', 'বিপ্লব বড়ুয়া', 'কামরুন নাহার']
 const KINDS = ['কৃষক গ্রুপ', 'আইপিএম ক্লাব', 'সিআইজি (ধান)', 'মহিলা কৃষক দল', 'সবজি চাষি দল']
 const SEASON = ['আমন ধানে মাজরা পোকা ও বাদামী গাছফড়িং দমন', 'ধানক্ষেতে পার্চিং ও আলোক ফাঁদ', 'আমন ধান কাটা, মাড়াই ও সংরক্ষণ', 'শীতকালীন সবজির চারা উৎপাদন', 'আলুর জমি তৈরি ও বীজ শোধন', 'সরিষার উন্নত জাত ও বপন সময়', 'ইঁদুর দমন', 'মাটি পরীক্ষা ও সুষম সার প্রয়োগ', 'সবজিতে ফেরোমন ফাঁদ স্থাপন']
 const pick = <T,>(a: T[], i: number) => a[((i % a.length) + a.length) % a.length]
@@ -32,7 +33,8 @@ function farmerGroups(saao: string, offset: number, n: number): Row[] {
   return Array.from({ length: n }, (_, i) => {
     const v = pick(VILLAGES, i + offset)
     return {
-      id: `fg_${saao}_${i + 1}`, saao_id: saao, group_name: `${v} ${pick(KINDS, i + offset)}`, address: `গ্রাম: ${v}, রাউজান`,
+      id: `fg_${saao}_${i + 1}`, saao_id: saao, group_name: `${v} ${pick(KINDS, i + offset)}`,
+      president: pick(PRESIDENTS, i + offset), village: v, union_name: UNIONS.includes(v) ? v : 'রাউজান', address: `গ্রাম: ${v}, ইউনিয়ন: ${UNIONS.includes(v) ? v : 'রাউজান'}`,
       mobile: `01${7 + (i % 3)}${String(20000000 + (i + 1) * 734521 + offset * 1117).slice(0, 8)}`, sort: i + 1, active: i < 12,
       created_at: '2026-09-01T04:00:00.000Z',
     }
@@ -47,7 +49,7 @@ function scheduleGroups(sid: string, fgs: Row[], p: Period, holidays: HolidayMap
     const topics = ['', '', '', '', '']
     for (let k = 0; k < topicsFor(i); k++) topics[k] = pick(SEASON, i * 2 + k + shift)
     return {
-      schedule_id: sid, group_no: i + 1, group_name: fg.group_name, address: fg.address, mobile: fg.mobile, farmer_group_id: fg.id,
+      schedule_id: sid, group_no: i + 1, group_name: fg.group_name, president: fg.president, address: fg.address, mobile: fg.mobile, farmer_group_id: fg.id,
       topics, visit_date: places[i]?.visit_date ?? null, slot: places[i]?.slot ?? null,
     }
   })
@@ -128,7 +130,8 @@ export function seed(): Record<string, Row[]> {
   const blockOf = (id: string) => (profiles.find((p) => p.id === id)?.block_name as string | null) ?? ''
   for (const s of schedules) Object.assign(s, { block_name: blockOf(s.saao_id), extra_charge: false })
   const fgExtra = farmerGroups('u_rahim', 6, 8).map((g, i) => ({ ...g, id: `fg_u_rahim_x${i + 1}`, block_name: 'বিনাজুরী', active: true }))
-  const farmer_groups = [...fgRahim, ...fgSumi, ...fgKamal].map((g) => ({ ...g, block_name: blockOf(g.saao_id) })).concat(fgExtra)
+  const withBlock = (g: Row, b: string) => ({ ...g, block_name: b, address: `${g.address}, ব্লক: ${b}` })
+  const farmer_groups = [...fgRahim, ...fgSumi, ...fgKamal].map((g) => withBlock(g, blockOf(g.saao_id))).concat(fgExtra.map((g) => withBlock(g, 'বিনাজুরী')))
   const block_charges = [
     { id: 'bc_1', saao_id: 'u_rahim', block_name: 'বিনাজুরী', union_name: null, from_date: '2026-10-01', to_date: null, created_by: 'u_aao', created_at: '2026-09-30T04:00:00.000Z' },
   ]

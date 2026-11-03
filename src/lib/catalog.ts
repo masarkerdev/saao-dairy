@@ -6,7 +6,16 @@ import type { HolidayMap } from './period'
 export interface Holiday { holiday_date: string; name: string }
 export interface Location { id: number; kind: 'union' | 'block'; name: string; sort: number }
 export interface Topic { id: number; topic: string; months: number[]; sort: number; active: boolean }
-export interface FarmerGroup { id: string; saao_id: string; group_name: string; address: string; mobile: string; sort: number; active: boolean; block_name?: string | null }
+export interface FarmerGroup {
+  id: string; saao_id: string; group_name: string; address: string; mobile: string; sort: number; active: boolean
+  block_name?: string | null; president?: string; village?: string; union_name?: string
+}
+
+// প্রিন্টের ঠিকানা লাইন: গ্রাম, ইউনিয়ন, ব্লক
+export function groupAddress(g: { village?: string; union_name?: string; block_name?: string | null }): string {
+  return [g.village?.trim() && `গ্রাম: ${g.village.trim()}`, g.union_name?.trim() && `ইউনিয়ন: ${g.union_name.trim()}`, g.block_name?.trim() && `ব্লক: ${g.block_name.trim()}`]
+    .filter(Boolean).join(', ')
+}
 
 const must = <T,>(r: { data: T | null; error: { message: string } | null }): T => {
   if (r.error) throw r.error
@@ -72,7 +81,12 @@ export async function listFarmerGroups(saaoId: string): Promise<FarmerGroup[]> {
   return must(await supabase.from('farmer_groups').select('*').eq('saao_id', saaoId).order('sort').order('created_at')) as FarmerGroup[]
 }
 export async function saveFarmerGroup(g: Partial<FarmerGroup> & { saao_id: string; group_name: string }): Promise<FarmerGroup> {
-  const row = { ...g, group_name: g.group_name.trim(), address: (g.address ?? '').trim(), mobile: normalizeMobile(g.mobile ?? '') }
+  const row = {
+    ...g, group_name: g.group_name.trim(), address: (g.address ?? '').trim(), mobile: normalizeMobile(g.mobile ?? ''),
+    ...(g.president !== undefined ? { president: g.president.trim() } : {}),
+    ...(g.village !== undefined ? { village: g.village.trim() } : {}),
+    ...(g.union_name !== undefined ? { union_name: g.union_name.trim() } : {}),
+  }
   if (g.id) {
     const r = await supabase.from('farmer_groups').update(row).eq('id', g.id).select('*')
     const d = must(r) as FarmerGroup[]
