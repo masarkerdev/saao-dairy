@@ -11,11 +11,13 @@ export interface FarmerGroup {
   block_name?: string | null; president?: string; village?: string; union_name?: string
 }
 
-// প্রিন্টের ঠিকানা লাইন: গ্রাম, ইউনিয়ন, ব্লক
+// প্রিন্টের ঠিকানা লাইন: গ্রাম, ইউনিয়ন (ব্লকের নাম ফর্মের উপরে একবার থাকে)
 export function groupAddress(g: { village?: string; union_name?: string; block_name?: string | null }): string {
-  return [g.village?.trim() && `গ্রাম: ${g.village.trim()}`, g.union_name?.trim() && `ইউনিয়ন: ${g.union_name.trim()}`, g.block_name?.trim() && `ব্লক: ${g.block_name.trim()}`]
+  return [g.village?.trim() && `গ্রাম: ${g.village.trim()}`, g.union_name?.trim() && `ইউনিয়ন: ${g.union_name.trim()}`]
     .filter(Boolean).join(', ')
 }
+// আগে সেভ হওয়া ঠিকানায় "ব্লক: …" থাকলে প্রিন্টে বাদ
+export const printAddress = (a: string) => a.replace(/,?\s*ব্লক\s*[:ঃ]\s*[^,]*/g, '').replace(/^[,\s]+|[,\s]+$/g, '').trim()
 
 const must = <T,>(r: { data: T | null; error: { message: string } | null }): T => {
   if (r.error) throw r.error

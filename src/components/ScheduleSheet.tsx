@@ -3,6 +3,7 @@ import { WEEKDAYS, bn, dayKind, dow, fmtDate, toISO } from '../lib/period'
 import type { HolidayMap } from '../lib/period'
 import type { PokkhoPage } from '../lib/month'
 import { displayNumbers, g2 } from '../lib/schedules'
+import { printAddress } from '../lib/catalog'
 
 // ছবির ফর্মের কাঠামো, এক পাতায় এক পক্ষ। শুধু দেখানো, প্রিন্ট ও PDF-এর জন্য।
 // পাতার মাপ: A4 আড়াআড়ি, চারদিকে ৮ মিমি মার্জিন → লেখার জায়গা ২৮১ × ১৯৪ মিমি।
@@ -10,26 +11,17 @@ export const SHEET_W_MM = 281
 export const SHEET_H_MM = 194
 const MM = 96 / 25.4 // ১ মিমি = কত পিক্সেল
 
-// পর্দায় লেখা ১৩px। প্রিন্ট ও PDF-এ এক পক্ষ এক পাতায় রাখতে লেখা বেশি হলে আকার কমে (১৩px থেকে ৭px পর্যন্ত)।
+// লেখার মাপ: পর্দায় ১৩px; প্রিন্ট ও PDF-এ ১১px (লেখা ছোট করা হয় না, এক পাতায় না আঁটলে পরের পাতায় যায়)
 export const SCREEN_FS = 13
-export function fitSheet(el: HTMLElement) {
-  const limit = SHEET_H_MM * MM - 2
-  let fs = SCREEN_FS
-  el.style.setProperty('--fs', `${fs}px`)
-  while (el.scrollHeight > limit && fs > 7) {
-    fs -= 0.25
-    el.style.setProperty('--fs', `${fs}px`)
-  }
-  return fs
-}
-export function unfitSheet(el: HTMLElement) {
-  el.style.setProperty('--fs', `${SCREEN_FS}px`)
-}
-export const fitAll = (root: ParentNode = document) => root.querySelectorAll<HTMLElement>('.sheet').forEach(fitSheet)
-export const unfitAll = (root: ParentNode = document) => root.querySelectorAll<HTMLElement>('.sheet').forEach(unfitSheet)
+export const PRINT_FS = 11
+export const PAGE_H_PX = SHEET_H_MM * MM // এক পাতার লেখার উচ্চতা (পিক্সেলে)
+const setFs = (el: HTMLElement, px: number) => el.style.setProperty('--fs', `${px}px`)
+export const printSizeAll = (root: ParentNode = document) => root.querySelectorAll<HTMLElement>('.sheet').forEach((el) => setFs(el, PRINT_FS))
+export const screenSizeAll = (root: ParentNode = document) => root.querySelectorAll<HTMLElement>('.sheet').forEach((el) => setFs(el, SCREEN_FS))
 
 interface Props {
   page: PokkhoPage
+  title: string // যেমন: মোঃ আক্কাস আলী (SAAO), ব্লকের নামঃ আধার মানিক
   monthName: string
   holidays: HolidayMap
   signer: string[]
@@ -38,7 +30,7 @@ interface Props {
 const SUNDAY_WORK = 'কৃষক সভা, প্রকল্প কাজ, প্রদর্শনী স্থাপন ও অন্যান্য কাজ'
 const TOPIC_NO = ['১', '২', '৩', '৪', '৫']
 
-export default function ScheduleSheet({ page, monthName, holidays, signer }: Props) {
+export default function ScheduleSheet({ page, title, monthName, holidays, signer }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const displayNo = displayNumbers(page.groups)
   const s = page.schedule
@@ -46,12 +38,12 @@ export default function ScheduleSheet({ page, monthName, holidays, signer }: Pro
 
   // পর্দায় সবসময় ১৩px
   useLayoutEffect(() => {
-    if (ref.current) unfitSheet(ref.current)
+    if (ref.current) setFs(ref.current, SCREEN_FS)
   })
-  // ব্রাউজারের প্রিন্টে (Ctrl+P সহ) এক পাতায় আঁটানো, প্রিন্ট শেষে আবার ১৩px
+  // ব্রাউজারের প্রিন্টে (Ctrl+P সহ) ১১px, প্রিন্ট শেষে আবার ১৩px
   useEffect(() => {
-    const before = () => { if (ref.current) fitSheet(ref.current) }
-    const after = () => { if (ref.current) unfitSheet(ref.current) }
+    const before = () => { if (ref.current) setFs(ref.current, PRINT_FS) }
+    const after = () => { if (ref.current) setFs(ref.current, SCREEN_FS) }
     window.addEventListener('beforeprint', before)
     window.addEventListener('afterprint', after)
     return () => { window.removeEventListener('beforeprint', before); window.removeEventListener('afterprint', after) }
@@ -80,7 +72,7 @@ export default function ScheduleSheet({ page, monthName, holidays, signer }: Pro
         <div className="gno">গ্রুপ নং -{g2(displayNo[no] ?? no)}</div>
         {g?.group_name && <div>{g.group_name}</div>}
         {g?.president && <div>সভাপতি: {g.president}</div>}
-        {g?.address && <div>{g.address}</div>}
+        {g?.address && printAddress(g.address) && <div>{printAddress(g.address)}</div>}
         {g?.mobile && <div>মোবাইল: {bn(g.mobile)}</div>}
       </td>
     )
@@ -127,7 +119,7 @@ export default function ScheduleSheet({ page, monthName, holidays, signer }: Pro
     <div className="paper">
       <div className="sheet" ref={ref}>
         <div className="top">
-          <span>উপসহকারী কৃষি কর্মকর্তাগণের পাক্ষিক ভ্রমণসূচী</span>
+          <span>{title}</span>
           <span>মাসের নামঃ {monthName}</span>
           <span>পক্ষঃ <s className={f === 1 ? 'keep' : ''}>১ম পক্ষ</s>/ <s className={f === 2 ? 'keep' : ''}>২য় পক্ষ</s></span>
         </div>
@@ -140,7 +132,7 @@ export default function ScheduleSheet({ page, monthName, holidays, signer }: Pro
             <col style={{ width: '23%' }} />
             <col style={{ width: '17%' }} />
           </colgroup>
-          <tbody>
+          <thead>
             <tr>
               <th rowSpan={3}>বার ও তারিখ</th>
               <th colSpan={5}>{page.label}</th>
@@ -157,6 +149,8 @@ export default function ScheduleSheet({ page, monthName, holidays, signer }: Pro
               <th>কৃষক গ্রুপে আলোচ্য বিষয়</th>
               <th>কৃষি তথ্য ও পরামর্শ কেন্দ্র</th>
             </tr>
+          </thead>
+          <tbody>
             {page.dates.map(row)}
           </tbody>
         </table>

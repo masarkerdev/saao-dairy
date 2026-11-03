@@ -558,4 +558,6 @@ input[type="search"] { font-size: 16px; }
   .wrap { overflow: visible; padding: 0; }
   .paper { width: auto; margin: 0; padding: 0; box-shadow: none; break-after: page; page-break-after: always; }
   .paper:last-child { break-after: auto; page-break-after: auto; }
+  .sheet tbody tr, .sheet .sg { break-inside: avoid; page-break-inside: avoid; }
+  .sheet thead { display: table-header-group; }
 }

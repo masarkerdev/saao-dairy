@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import EntryForm from '../components/EntryForm'
 import Icon from '../components/Icon'
 import { useFeedback } from '../components/Feedback'
-import ScheduleSheet, { fitAll, unfitAll } from '../components/ScheduleSheet'
+import ScheduleSheet, { printSizeAll, screenSizeAll } from '../components/ScheduleSheet'
 import StatusSteps from '../components/StatusSteps'
 import { useAuth } from '../lib/auth'
 import { holidayMap, listFarmerGroups, listHolidays, listTopics, saveFarmerGroup, topicsForMonth } from '../lib/catalog'
@@ -11,7 +11,7 @@ import type { FarmerGroup } from '../lib/catalog'
 import { mobileError } from '../lib/mobile'
 import { badPlace, bn, periodEnd, periodRange, periodStart, periodTitle } from '../lib/period'
 import { fileBase, saveBlob } from '../lib/download'
-import { loadMonth, signerLines } from '../lib/month'
+import { loadMonth, sheetTitle, signerLines } from '../lib/month'
 import type { MonthData } from '../lib/month'
 import type { HolidayMap } from '../lib/period'
 import {
@@ -268,17 +268,18 @@ export default function ScheduleEditor() {
         const { sheetsToPdf } = await import('../lib/exportPdf')
         const els = Array.from(sheetsRef.current?.querySelectorAll<HTMLElement>('.sheet') ?? [])
         if (els.length !== 2) throw new Error('ফর্ম এখনো তৈরি হয়নি, আবার চেষ্টা করুন')
-        // PDF-এ প্রতিটি পক্ষ এক পাতায়: দরকার হলে লেখা ছোট করে ছবি তোলা, তারপর পর্দায় আবার ১৩px
-        if (sheetsRef.current) fitAll(sheetsRef.current)
+        // PDF-এ লেখা ১১px, তারপর পর্দায় আবার ১৩px
+        if (sheetsRef.current) printSizeAll(sheetsRef.current)
+        await nextFrame()
         try {
           await saveBlob(await sheetsToPdf(els), `${name}.pdf`)
         } finally {
-          if (sheetsRef.current) unfitAll(sheetsRef.current)
+          if (sheetsRef.current) screenSizeAll(sheetsRef.current)
         }
       } else {
         const { monthToDocx } = await import('../lib/exportDocx')
         const live = { ...m, pages: m.pages.map((pg) => pg.schedule?.id === data?.schedule.id ? { ...pg, groups: groupsRef.current, notes: notesRef.current } : pg) as MonthData['pages'] }
-        await saveBlob(await monthToDocx(live, signerLines(m.owner, data?.schedule)), `${name}.docx`)
+        await saveBlob(await monthToDocx(live, signerLines(m.owner, data?.schedule), sheetTitle(m.owner, data?.schedule)), `${name}.docx`)
       }
       toast(kind === 'pdf' ? 'PDF তৈরি হয়েছে' : 'Word ফাইল তৈরি হয়েছে')
     } catch (e) {
@@ -473,7 +474,7 @@ export default function ScheduleEditor() {
       <div ref={sheetsRef} className={view === 'sheet' ? 'wrap' : 'wrap print-only'}>
         {monthView
           ? monthView.pages.map((pg) => (
-            <ScheduleSheet key={pg.label} page={pg} monthName={monthView.monthName} holidays={monthView.holidays} signer={signer} />
+            <ScheduleSheet key={pg.label} page={pg} title={sheetTitle(owner, s)} monthName={monthView.monthName} holidays={monthView.holidays} signer={signer} />
           ))
           : view === 'sheet' && <p className="center">ফর্ম তৈরি হচ্ছে…</p>}
       </div>

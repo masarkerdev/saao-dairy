@@ -1,8 +1,10 @@
 // মাসের সূচি Word (.docx) ফাইলে: পর্দার ফর্মের একই কাঠামো, Word-এ খুলে সম্পাদনা করা যায়।
-// প্রতি পক্ষ এক পাতা (A4 আড়াআড়ি)। ফন্ট: Nirmala UI (Windows-এ থাকে); চাইলে Word-এ বদলানো যায়।
+// প্রতি পক্ষ নতুন পাতায় শুরু (A4 আড়াআড়ি); লেখা ১১px-এর সমান (৮.৫ পয়েন্ট), না আঁটলে পরের পাতায় যায়, টেবিলের মাথা আবার বসে।
+// ফন্ট: Nirmala UI (Windows-এ থাকে); চাইলে Word-এ বদলানো যায়।
 import { WEEKDAYS, bn, dayKind, dow, fmtDate, toISO } from './period'
 import type { MonthData, PokkhoPage } from './month'
 import { displayNumbers, g2 } from './schedules'
+import { printAddress } from './catalog'
 
 const FONT = 'Nirmala UI'
 const PAGE_W = 16838 // A4 লম্বা দিক, টুইপ
@@ -11,12 +13,12 @@ const MARGIN_X = 454 // ৮ মিমি
 const MARGIN_Y = 340 // ৬ মিমি
 const USABLE_W = PAGE_W - MARGIN_X * 2
 const COLS = [10, 13.5, 23, 13.5, 23, 17].map((p) => Math.round((USABLE_W * p) / 100))
-const SZ = 15 // অর্ধ-পয়েন্ট: ৭.৫ পয়েন্ট
-const LINE = 210 // লাইনের উচ্চতা ঠিক ১০.৫ পয়েন্ট (যেকোনো ফন্টে এক মাপ, তাই পাতা ভাঙে না)
+const SZ = 17 // অর্ধ-পয়েন্ট: ৮.৫ পয়েন্ট ≈ ১১px
+const LINE = 220 // লাইনের উচ্চতা ঠিক ১১ পয়েন্ট (যেকোনো ফন্টে এক মাপ)
 const SUNDAY_WORK = 'কৃষক সভা, প্রকল্প কাজ, প্রদর্শনী স্থাপন ও অন্যান্য কাজ'
 const TOPIC_NO = ['১', '২', '৩', '৪', '৫']
 
-export async function monthToDocx(m: MonthData, signer: string[]): Promise<Blob> {
+export async function monthToDocx(m: MonthData, signer: string[], heading = 'উপসহকারী কৃষি কর্মকর্তাগণের পাক্ষিক ভ্রমণসূচী'): Promise<Blob> {
   const d = await import('docx')
   const {
     AlignmentType, BorderStyle, Document, Packer, PageOrientation, Paragraph, Tab, TabStopType, Table, TableCell,
@@ -77,7 +79,7 @@ export async function monthToDocx(m: MonthData, signer: string[]): Promise<Blob>
       const out = [para(`গ্রুপ নং -${g2(displayNo[no] ?? no)}`)]
       if (g?.group_name) out.push(para(g.group_name))
       if (g?.president) out.push(para(`সভাপতি: ${g.president}`))
-      if (g?.address) out.push(para(g.address))
+      if (g?.address && printAddress(g.address)) out.push(para(printAddress(g.address)))
       if (g?.mobile) out.push(para(`মোবাইল: ${bn(g.mobile)}`))
       return out
     }
@@ -146,22 +148,22 @@ export async function monthToDocx(m: MonthData, signer: string[]): Promise<Blob>
       spacing: { before: 0, after: 40 },
       tabStops: [{ type: TabStopType.CENTER, position: Math.round(USABLE_W / 2) }, { type: TabStopType.RIGHT, position: USABLE_W }],
       children: [
-        run('উপসহকারী কৃষি কর্মকর্তাগণের পাক্ষিক ভ্রমণসূচী', { bold: true, size: 18 }),
-        new TextRun({ children: [new Tab(), `মাসের নামঃ ${m.monthName}`], font: FONT, size: 18, bold: true }),
-        new TextRun({ children: [new Tab(), 'পক্ষঃ '], font: FONT, size: 18, bold: true }),
-        run('১ম পক্ষ', { bold: true, size: 18, strike: f !== 1 }),
-        run('/ ', { bold: true, size: 18 }),
-        run('২য় পক্ষ', { bold: true, size: 18, strike: f !== 2 }),
+        run(heading, { bold: true, size: 19 }),
+        new TextRun({ children: [new Tab(), `মাসের নামঃ ${m.monthName}`], font: FONT, size: 19, bold: true }),
+        new TextRun({ children: [new Tab(), 'পক্ষঃ '], font: FONT, size: 19, bold: true }),
+        run('১ম পক্ষ', { bold: true, size: 19, strike: f !== 1 }),
+        run('/ ', { bold: true, size: 19 }),
+        run('২য় পক্ষ', { bold: true, size: 19, strike: f !== 2 }),
       ],
     })
 
     const table = new Table({ rows, columnWidths: COLS, layout: TableLayoutType.FIXED, width: { size: USABLE_W, type: WidthType.DXA } })
     const note = para('নামাজ ও মধ্যাহ্ন বিরতিসহ', { align: AlignmentType.CENTER })
 
-    const sigLeft = [para('অনুমোদনকারী কর্মকর্তার স্বাক্ষর ও সীল', { size: 17 })]
+    const sigLeft = [para('অনুমোদনকারী কর্মকর্তার স্বাক্ষর ও সীল', { size: 18 })]
     if (approved) sigLeft.push(para(approved))
-    const sigRight = [para('দাখিলকারী এসএএও এর স্বাক্ষর ও সীল', { align: AlignmentType.CENTER, size: 17 }),
-      ...signer.map((x) => para(x, { align: AlignmentType.CENTER, size: 16 }))]
+    const sigRight = [para('দাখিলকারী এসএএও এর স্বাক্ষর ও সীল', { align: AlignmentType.CENTER, size: 18 }),
+      ...signer.map((x) => para(x, { align: AlignmentType.CENTER, size: 17 }))]
     const half = Math.round(USABLE_W / 2)
     const sig = new Table({
       columnWidths: [half, USABLE_W - half], layout: TableLayoutType.FIXED, width: { size: USABLE_W, type: WidthType.DXA }, borders: noBorders,

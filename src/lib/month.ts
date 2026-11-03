@@ -47,6 +47,13 @@ export function signerLines(owner: Profile | null, block?: { block_name?: string
   return [owner.full_name, 'উপসহকারী কৃষি কর্মকর্তা,', place].filter(Boolean)
 }
 
+// ফর্মের উপরের বাঁ দিকের লেখা: {নাম} (SAAO), ব্লকের নামঃ {ব্লক}
+export function sheetTitle(owner: Profile | null, block?: { block_name?: string | null; extra_charge?: boolean } | null): string {
+  if (!owner) return 'উপসহকারী কৃষি কর্মকর্তাগণের পাক্ষিক ভ্রমণসূচী'
+  const b = block?.block_name || owner.block_name
+  return [`${owner.full_name} (SAAO)`, b && `ব্লকের নামঃ ${b}${block?.extra_charge ? ' (অতিরিক্ত দায়িত্ব)' : ''}`].filter(Boolean).join(', ')
+}
+
 // live: যে পক্ষটি এখন সম্পাদনা হচ্ছে তার সেভ না হওয়া সর্বশেষ তথ্য
 export async function loadMonth(
   ownerId: string,
