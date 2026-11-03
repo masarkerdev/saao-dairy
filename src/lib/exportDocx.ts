@@ -1,12 +1,13 @@
 // মাসের সূচি Word (.docx) ফাইলে: পর্দার ফর্মের একই কাঠামো, Word-এ খুলে সম্পাদনা করা যায়।
 // প্রতি পক্ষ নতুন পাতায় শুরু (A4 আড়াআড়ি); লেখা ১১px-এর সমান (৮.৫ পয়েন্ট), না আঁটলে পরের পাতায় যায়, টেবিলের মাথা আবার বসে।
-// ফন্ট: Nirmala UI (Windows-এ থাকে); চাইলে Word-এ বদলানো যায়।
+// ফন্ট: Nikosh, ফাইলের ভেতরে ঢোকানো থাকে, তাই যে কম্পিউটারে Nikosh নেই সেখানেও একই দেখায়।
 import { WEEKDAYS, bn, dayKind, dow, fmtDate, toISO } from './period'
 import type { MonthData, PokkhoPage } from './month'
 import { displayNumbers, g2 } from './schedules'
 import { printAddress } from './catalog'
+import { nikoshBytes } from './fonts'
 
-const FONT = 'Nirmala UI'
+const FONT = 'Nikosh'
 const PAGE_W = 16838 // A4 লম্বা দিক, টুইপ
 const PAGE_H = 11906
 const MARGIN_X = 454 // ৮ মিমি
@@ -175,7 +176,10 @@ export async function monthToDocx(m: MonthData, signer: string[], heading = 'উ
     return [title, table, note, new Paragraph({ spacing: { before: 0, after: 0, line: 300, lineRule: LineRuleType.EXACT }, children: [] }), sig]
   }
 
+  const nikosh = await nikoshBytes()
   const doc = new Document({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(nikosh ? { fonts: [{ name: FONT, data: nikosh as any }] } : {}),
     creator: 'পাক্ষিক ভ্রমণসূচী',
     title: `পাক্ষিক ভ্রমণসূচী ${m.monthName} ${m.year}`,
     styles: { default: { document: { run: { font: FONT, size: SZ } } } },

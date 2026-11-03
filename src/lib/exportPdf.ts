@@ -1,13 +1,15 @@
 // পর্দার ফর্ম (প্রিন্টের মতো) হুবহু ছবি করে A4 আড়াআড়ি PDF বানানো।
 // লেখা ১১px; এক পক্ষ এক পাতায় না আঁটলে সারির মাঝখানে না কেটে পরের পাতায় যায়,
 // আর পরের পাতার শুরুতে টেবিলের মাথা (বার ও তারিখ, সময়…) আবার বসে।
+import { nikoshReady } from './fonts'
+
 const PAGE_W = 297
 const PAGE_H = 210
 const MARGIN = 8
 
 export async function sheetsToPdf(sheets: HTMLElement[]): Promise<Blob> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
-  if (document.fonts?.ready) await document.fonts.ready
+  await nikoshReady()
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
   const maxW = PAGE_W - MARGIN * 2
   const maxH = PAGE_H - MARGIN * 2

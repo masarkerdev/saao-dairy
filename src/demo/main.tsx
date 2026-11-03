@@ -6,6 +6,10 @@ import ErrorBoundary from '../components/ErrorBoundary'
 import { FeedbackProvider, useFeedback } from '../components/Feedback'
 import { AuthProvider } from '../lib/auth'
 import { setFileSaver } from '../lib/download'
+import { setNikoshUrl } from '../lib/fonts'
+
+// ডেমো পাতায় ফন্ট পাশের fonts/ ফোল্ডারে
+setNikoshUrl('fonts/Nikosh.ttf')
 import { setTodayForDemo } from '../lib/period'
 import { demoAuth, resetDemo, supabase } from './mockSupabase'
 
