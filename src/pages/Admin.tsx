@@ -6,7 +6,7 @@ import { addCharge, listCharges, removeCharge } from '../lib/blocks'
 import type { BlockCharge } from '../lib/blocks'
 import { listLocations } from '../lib/catalog'
 import { fmtDayMonth } from '../lib/period'
-import { deleteUser, listProfiles, setActive, setPost } from '../lib/admin'
+import { deleteUser, listProfiles, makePassword, resetPassword, setActive, setPost } from '../lib/admin'
 import type { UserFilter } from '../lib/admin'
 import { bn } from '../lib/period'
 import { errMsg } from '../lib/schedules'
@@ -37,6 +37,9 @@ export default function Admin() {
   const [charges, setCharges] = useState<BlockCharge[]>([])
   const [allBlocks, setAllBlocks] = useState<string[]>([])
   const [chargeFor, setChargeFor] = useState<string | null>(null)
+  const [pwFor, setPwFor] = useState<string | null>(null)
+  const [pw, setPw] = useState('')
+  const [pwDone, setPwDone] = useState<{ id: string; pw: string } | null>(null)
   const [cf, setCf] = useState({ block: '', from: '', to: '' })
 
   useEffect(() => {
@@ -127,6 +130,25 @@ export default function Admin() {
   async function deactivate(p: Profile) {
     if (!(await confirm(`${p.full_name}-কে নিষ্ক্রিয় করবেন? তিনি আর লগইন করে কাজ করতে পারবেন না।`, { ok: 'নিষ্ক্রিয় করুন', danger: true }))) return
     await run(p, () => setActive(p.id, false), { active: false }, `${p.full_name} নিষ্ক্রিয় হয়েছেন`)
+  }
+
+  async function doReset(p: Profile) {
+    if (pw.length < 8) return toast('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে', 'err')
+    if (!(await confirm(`${p.full_name}-এর পাসওয়ার্ড বদলে নতুনটা দেবেন? তাঁর চালু থাকা লগইন বন্ধ হয়ে যাবে।`, { ok: 'রিসেট করুন' }))) return
+    setBusyId(p.id)
+    try {
+      await resetPassword(p.id, pw)
+      setPwDone({ id: p.id, pw })
+      setPwFor(null)
+      toast(`${p.full_name}-এর পাসওয়ার্ড রিসেট হয়েছে`)
+    } catch (e) {
+      toast(errMsg(e, 'রিসেট করা যায়নি।'), 'err')
+    }
+    setBusyId(null)
+  }
+
+  async function copyPw(text: string) {
+    try { await navigator.clipboard.writeText(text); toast('কপি হয়েছে') } catch { toast('কপি করা যায়নি, হাতে লিখে নিন', 'err') }
   }
 
   async function remove(p: Profile) {
@@ -231,6 +253,31 @@ export default function Admin() {
                   {p.email && <span><Icon name="mail" size={14} /> {p.email}</span>}
                   {p.mobile && <a href={`tel:${p.mobile}`}><Icon name="phone" size={14} /> {bn(p.mobile)}</a>}
                 </div>
+                {can && pwFor === p.id && (
+                  <div className="pw-form">
+                    <label className="field">
+                      <span className="flabel">নতুন পাসওয়ার্ড</span>
+                      <span className="finput">
+                        <Icon name="lock" size={16} />
+                        <input value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="off" spellCheck={false} aria-label="নতুন পাসওয়ার্ড" />
+                        <button type="button" className="peek" title="নতুন বানান" aria-label="নতুন পাসওয়ার্ড বানান" onClick={() => setPw(makePassword())}><Icon name="refresh" size={16} /></button>
+                      </span>
+                      <span className="fhint">নিজে লিখতে পারেন, অথবা যেটা বসানো আছে সেটাই রাখুন। কমপক্ষে ৮ অক্ষর।</span>
+                    </label>
+                    <div className="row">
+                      <button type="button" className="sm" disabled={busy} onClick={() => void doReset(p)}>রিসেট করুন</button>
+                      <button type="button" className="ghost sm" onClick={() => setPwFor(null)}>বাতিল</button>
+                    </div>
+                  </div>
+                )}
+                {pwDone?.id === p.id && (
+                  <div className="pw-done">
+                    <span>{p.full_name}-এর নতুন পাসওয়ার্ড:</span>
+                    <code>{pwDone.pw}</code>
+                    <button type="button" className="ghost sm" onClick={() => void copyPw(pwDone.pw)}>কপি</button>
+                    <span className="muted small">এটা তাঁকে ফোনে বা সরাসরি জানান। লগইনের পর প্রোফাইল থেকে নিজের পাসওয়ার্ড দিতে বলুন। এই পেজ ছাড়লে আর দেখা যাবে না।</span>
+                  </div>
+                )}
                 {saao && p.active && (charges.some((c) => c.saao_id === p.id) || can) && (
                   <div className="xcharge">
                     <span className="xc-label"><Icon name="map" size={14} /> অতিরিক্ত দায়িত্ব</span>
@@ -289,6 +336,10 @@ export default function Admin() {
                     ) : (
                       <button type="button" className="ghost sm danger-text" disabled={busy} onClick={() => void deactivate(p)}>নিষ্ক্রিয় করুন</button>
                     )}
+                    <button type="button" className="ghost sm pw-btn" disabled={busy}
+                      onClick={() => { setPwFor(pwFor === p.id ? null : p.id); setPw(makePassword()); setPwDone(null) }}>
+                      <Icon name="lock" size={14} /> পাসওয়ার্ড রিসেট
+                    </button>
                     {dev && (
                       <button type="button" className="icon-btn danger-text uc-del" disabled={busy} aria-label={`${p.full_name}-এর একাউন্ট মুছুন`} title="একাউন্ট মুছুন" onClick={() => void remove(p)}>
                         <Icon name="trash" size={18} />

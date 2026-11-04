@@ -59,3 +59,18 @@ export async function deleteUser(id: string): Promise<string> {
   if (error) throw error
   return String(data ?? '')
 }
+
+// অন্যের পাসওয়ার্ড রিসেট (sql/11_reset_password.sql): ডেভেলপার সবার, এডমিন ও কো-এডমিন এসএএও-দের
+export async function resetPassword(id: string, password: string): Promise<string> {
+  const { data, error } = await supabase.rpc('reset_user_password', { target: id, new_password: password })
+  if (error) throw error
+  return String(data ?? '')
+}
+
+// সহজে পড়া যায় এমন এলোমেলো পাসওয়ার্ড (0/O, 1/l/I বাদ)
+export function makePassword(len = 10): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  const r = new Uint32Array(len)
+  crypto.getRandomValues(r)
+  return Array.from(r, (x) => chars[x % chars.length]).join('')
+}

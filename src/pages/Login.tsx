@@ -38,7 +38,7 @@ export default function Login() {
         <button className="btn-lg" disabled={busy}>{busy ? 'অপেক্ষা করুন…' : 'লগইন'}</button>
       </form>
       <p className="auth-alt">একাউন্ট নেই? <Link to="/signup">নতুন একাউন্ট খুলুন</Link></p>
-      <p className="muted small">পাসওয়ার্ড ভুলে গেলে আপনার কো-এডমিন বা উপজেলা কৃষি অফিসকে জানান।</p>
+      <p className="muted small">পাসওয়ার্ড ভুলে গেলে উপজেলা কৃষি অফিসার বা কো-এডমিনকে জানান, তাঁরা নতুন পাসওয়ার্ড দেবেন। কর্মকর্তারা ডেভেলপারকে জানাবেন।</p>
     </AuthLayout>
   )
 }

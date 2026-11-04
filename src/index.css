@@ -550,6 +550,14 @@ input[type="search"] { font-size: 16px; }
 .addr-preview { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px; font-size: .9rem; line-height: 1.45; background: var(--bg); }
 .addr-preview .muted { display: block; margin-bottom: 4px; }
 
+/* পাসওয়ার্ড রিসেট */
+.pw-btn { display: inline-flex; align-items: center; gap: 5px; }
+.pw-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px dashed var(--line); border-radius: 12px; }
+.pw-form input { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .04em; }
+.pw-done { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px; border-radius: 12px; background: var(--good-bg); color: var(--ink); font-size: .9rem; }
+.pw-done code { font-size: 1.05rem; font-weight: 600; background: var(--card); padding: 3px 10px; border-radius: 8px; user-select: all; letter-spacing: .05em; }
+.pw-done .muted { flex: 1 1 100%; }
+
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
   body { background: #fff; }

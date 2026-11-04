@@ -425,6 +425,19 @@ class Query implements PromiseLike<Res> {
 
 // sql/08_delete_user.sql-এর মতো
 async function rpc(name: string, args: Row) {
+  if (name === 'reset_user_password') {
+    // sql/11-এর মতো; ডেমোতে আসল পাসওয়ার্ড নেই, শুধু নিয়ম যাচাই
+    const r = role()
+    if (!r || !['developer', 'admin', 'coadmin'].includes(r)) return delay({ data: null, error: fail('পাসওয়ার্ড রিসেটের অনুমতি নেই') })
+    if (args.target === uid) return delay({ data: null, error: fail('নিজের পাসওয়ার্ড প্রোফাইল পেজ থেকে বদলান') })
+    if (String(args.new_password ?? '').length < 8) return delay({ data: null, error: fail('নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে') })
+    const v = db.profiles.find((p) => p.id === args.target)
+    if (!v) return delay({ data: null, error: fail('ইউজার পাওয়া যায়নি') })
+    if (v.role === 'developer') return delay({ data: null, error: fail('ডেভেলপারের পাসওয়ার্ড অ্যাপ থেকে রিসেট করা যায় না') })
+    if (r !== 'developer' && (v.role !== 'saao' || (v.designation ?? SAAO_T) !== SAAO_T))
+      return delay({ data: null, error: fail('কর্মকর্তাদের পাসওয়ার্ড শুধু ডেভেলপার রিসেট করতে পারেন') })
+    return delay({ data: v.full_name, error: null })
+  }
   if (name !== 'delete_user') return delay({ data: null, error: fail('অজানা ফাংশন') })
   if (!developer()) return delay({ data: null, error: fail('ইউজার মোছার অনুমতি শুধু ডেভেলপারের') })
   const t = args.target as string
