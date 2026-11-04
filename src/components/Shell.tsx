@@ -4,11 +4,13 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { isDeveloper, isReviewer, roleTitle } from '../types'
 import Icon, { Avatar } from './Icon'
+import { ReminderBanner, ReminderBell, useReminders } from './Reminders'
 
 // লগইনের পরের সব পেজ: উপরে অ্যাপ-বার (ডেস্কটপে মেনুসহ), মোবাইলে নিচে আইকনসহ মেনু
 export default function Shell({ children }: { children: ReactNode }) {
   const { profile } = useAuth()
   const { pathname } = useLocation()
+  const reminders = useReminders()
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   if (!profile) return <>{children}</>
   const rev = isReviewer(profile.role)
@@ -41,6 +43,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             </span>
           </Link>
           {nav('topnav')}
+          <ReminderBell items={reminders} />
           <Link to="/profile" className="me" aria-label="প্রোফাইল">
             <span className="me-text">
               <span className="wname">{profile.full_name}</span>
@@ -50,7 +53,10 @@ export default function Shell({ children }: { children: ReactNode }) {
           </Link>
         </div>
       </header>
-      <main className="shell-main">{children}</main>
+      <main className="shell-main">
+        <ReminderBanner items={reminders} />
+        {children}
+      </main>
       {nav('tabbar noprint')}
     </div>
   )
