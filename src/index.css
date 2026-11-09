@@ -593,6 +593,22 @@ input[type="search"] { font-size: 16px; }
   .rem-banner { width: calc(100% - 24px); }
 }
 
+/* মাসিক সূচি */
+.mc-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mc-title { font-size: .85rem; font-weight: 600; margin-bottom: 6px; }
+@media (max-width: 760px) { .mc-two { grid-template-columns: 1fr; } }
+.pk-switch, .pk-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 4px; }
+.pk { display: flex; flex-direction: column; gap: 1px; padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 12px; text-decoration: none; color: var(--ink); background: var(--card); text-align: left; font: inherit; }
+.pk b { font-size: .92rem; }
+.pk small { font-size: .76rem; color: var(--muted); }
+a.pk:hover { border-color: var(--ac); }
+.pk.on { border-color: var(--ac); background: var(--ac-soft); }
+.pk.on b { color: var(--ac); }
+.pk.missing { border-style: dashed; border-color: #d9a400; background: var(--warn-bg); cursor: pointer; }
+.pk.missing small { color: var(--warn); }
+.lv-good .rem-dot { background: var(--good); width: 16px; height: 16px; margin-top: 3px; display: grid; place-items: center; color: #fff; }
+.bell-foot { margin: 4px 10px 8px; font-size: .74rem; color: var(--muted); }
+
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
   body { background: #fff; }

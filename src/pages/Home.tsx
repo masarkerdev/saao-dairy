@@ -8,14 +8,14 @@ import { useAuth } from '../lib/auth'
 import { blocksFor, listCharges } from '../lib/blocks'
 import type { BlockCharge } from '../lib/blocks'
 import { getSubmitDaysBefore, listFarmerGroups } from '../lib/catalog'
-import { periodOverview } from '../lib/dashboard'
+import { monthOverview } from '../lib/dashboard'
 import type { RowState, SaaoRow } from '../lib/dashboard'
 import {
-  bn, daysBetween, deadlineFor, fmtDayMonth, nextPeriod, periodRange, periodStart, periodTitle, planningPeriod, prevPeriod, toISO, todayISO,
+  bn, daysBetween, fmtDayMonth, monthDeadline, monthOf, monthPeriods, monthTitle, nextMonth, periodOf, planningMonth, prevMonth, sameMonth, todayISO,
 } from '../lib/period'
-import type { Period } from '../lib/period'
-import { GROUP_COUNT, STATUS_SHORT, countFilled, deleteSchedule, errMsg, listMySchedules, schedulePeriod } from '../lib/schedules'
-import type { Schedule } from '../lib/schedules'
+import type { Month } from '../lib/period'
+import { GROUP_COUNT, STATUS_SHORT, countFilled, deleteSchedule, errMsg, groupByMonth, listMySchedules } from '../lib/schedules'
+import type { MonthGroup, Schedule } from '../lib/schedules'
 import Admin from './Admin'
 import { isDeveloper, isReviewer, roleTitle } from '../types'
 
@@ -38,9 +38,9 @@ function Ring({ value, total }: { value: number; total: number }) {
   )
 }
 
-function Deadline({ p, daysBefore, done }: { p: Period; daysBefore: number; done: boolean }) {
+function Deadline({ m, daysBefore, done }: { m: Month; daysBefore: number; done: boolean }) {
   const today = todayISO()
-  const dl = deadlineFor(p, daysBefore)
+  const dl = monthDeadline(m, daysBefore)
   const left = daysBetween(today, dl)
   if (done) return <span className="muted small">জমার শেষ সময় ছিল {fmtDayMonth(dl)}</span>
   if (left < 0) return <span className="err small">জমার শেষ সময় পার হয়েছে ({fmtDayMonth(dl)})</span>
@@ -61,7 +61,8 @@ function SaaoHome() {
   const [daysBefore, setDaysBefore] = useState(2)
   const [charges, setCharges] = useState<BlockCharge[]>([])
   const today = todayISO()
-  const focus = planningPeriod(today)
+  const focus = planningMonth(today)
+  const running = monthOf(periodOf(today))
 
   useEffect(() => {
     if (!profile) return
@@ -71,32 +72,38 @@ function SaaoHome() {
     listCharges(profile.id).then(setCharges).catch(() => setCharges([]))
   }, [profile])
 
-  // ফোকাসের সূচির পূরণ-সংখ্যা
-  const mineOwn = (s: Schedule) => !s.extra_charge
-  const current = list?.find((s) => s.start_date === periodStart(focus) && mineOwn(s)) ?? null
-  const running = list?.find((s) => s.start_date === periodStart(prevPeriod(focus)) && mineOwn(s)) ?? null
-  const extraBlocks = blocksFor(profile, charges, focus).filter((b) => b.extra)
+  const months = useMemo(() => groupByMonth(list ?? []), [list])
+  const ofMonth = (m: Month, extra: boolean, block?: string) =>
+    months.find((g) => sameMonth(g.month, m) && (extra ? g.block === block : !g.extra)) ?? null
+  const current = ofMonth(focus, false)
+  const now = ofMonth(running, false)
+  const extraBlocks = blocksFor(profile, charges, monthPeriods(focus)[0]).filter((b) => b.extra)
+
+  // ফোকাস মাসের দুই পক্ষের পূরণ-সংখ্যা
   useEffect(() => {
-    if (!current) return
-    countFilled(current.id).then((n) => setFilled((f) => ({ ...f, [current.id]: n }))).catch(() => undefined)
-  }, [current])
+    for (const s of [current?.first, current?.second]) {
+      if (s) countFilled(s.id).then((n) => setFilled((f) => ({ ...f, [s.id]: n }))).catch(() => undefined)
+    }
+  }, [current?.first?.id, current?.second?.id])
 
   if (!profile) return null
-  const returned = (list ?? []).filter((s) => s.status === 'returned')
+  const returned = months.filter((g) => g.status === 'returned')
 
-  async function remove(s: Schedule) {
-    if (!(await confirm('এই খসড়া সূচি মুছে ফেলবেন?', { ok: 'মুছুন', danger: true }))) return
+  async function remove(g: MonthGroup) {
+    if (!(await confirm(`${monthTitle(g.month)}-এর খসড়া সূচি (দুই পক্ষ) মুছে ফেলবেন?`, { ok: 'মুছুন', danger: true }))) return
     try {
-      await deleteSchedule(s.id)
-      setList((l) => (l ?? []).filter((x) => x.id !== s.id))
+      for (const s of [g.first, g.second]) if (s && s.status === 'draft') await deleteSchedule(s.id)
+      setList((l) => (l ?? []).filter((x) => x.id !== g.first?.id && x.id !== g.second?.id))
     } catch (e) {
       toast(errMsg(e, 'মোছা যায়নি।'), 'err')
     }
   }
 
-  const fc = current ? filled[current.id] : undefined
+  const parts = current ? [current.first, current.second] : []
+  const fc = parts.reduce((n, s) => n + (s ? filled[s.id] ?? 0 : 0), 0)
   const editable = current && (current.status === 'draft' || current.status === 'returned')
-  const newLink = `/schedules/new?p=${focus.year}-${focus.month}-${focus.fortnight}`
+  const missing = current ? parts.filter((x) => !x).length : 2
+  const newLink = `/schedules/new?m=${focus.year}-${focus.month}`
 
   return (
     <div className="page narrow home">
@@ -111,20 +118,20 @@ function SaaoHome() {
         </div>
       </section>
 
-      {returned.map((s) => (
-        <Link key={s.id} to={`/schedules/${s.id}`} className="card note-box linkcard alert-card">
+      {returned.map((g) => (
+        <Link key={g.key} to={`/schedules/${g.main.id}`} className="card note-box linkcard alert-card">
           <Icon name="alert" size={22} />
           <div>
-            <strong>{periodTitle(schedulePeriod(s))} সংশোধনের জন্য ফেরত এসেছে</strong>
-            {s.approver_note && <div>“{s.approver_note}”</div>}
-            <span className="small">খুলে ঠিক করুন, তারপর আবার জমা দিন →</span>
+            <strong>{monthTitle(g.month)}{g.extra ? ` (${g.block} ব্লক)` : ''}-এর সূচি সংশোধনের জন্য ফেরত এসেছে</strong>
+            {(g.first?.approver_note || g.second?.approver_note) && <div>“{g.first?.approver_note || g.second?.approver_note}”</div>}
+            <span className="small">খুলে ঠিক করুন, তারপর আবার মাস জমা দিন →</span>
           </div>
         </Link>
       ))}
 
       {groupCount === 0 && (
         <div className="card hint-box">
-          <strong>শুরুতে একটি কাজ:</strong> আপনার কৃষক গ্রুপগুলোর নাম, ঠিকানা ও মোবাইল একবার লিখে রাখুন। তাহলে প্রতি পক্ষে শুধু বাছাই করলেই হবে।
+          <strong>শুরুতে একটি কাজ:</strong> আপনার কৃষক গ্রুপগুলোর নাম, ঠিকানা ও মোবাইল একবার লিখে রাখুন। তাহলে প্রতি মাসে শুধু বাছাই করলেই হবে।
           <div style={{ marginTop: 8 }}><Link to="/groups" className="btn">গ্রুপ তালিকা তৈরি করুন</Link></div>
         </div>
       )}
@@ -132,11 +139,11 @@ function SaaoHome() {
       <section className="card focus">
         <div className="focus-row">
           <div className="focus-text">
-            <div className="eyebrow">পরের পক্ষ</div>
-            <h1>{periodTitle(focus)}</h1>
-            <div className="muted">{periodRange(focus)}</div>
+            <div className="eyebrow">পরের মাস</div>
+            <h1>{monthTitle(focus)}</h1>
+            <div className="muted">দুই পক্ষ · ১-১৫ ও ১৬-শেষ, মাসে একবার জমা</div>
           </div>
-          {current && fc !== undefined && <Ring value={fc} total={GROUP_COUNT} />}
+          {current && missing === 0 && <Ring value={fc} total={GROUP_COUNT * 2} />}
           {list && !current && <div className="focus-empty"><Icon name="calendarPlus" size={30} /></div>}
         </div>
         {list === null ? (
@@ -144,38 +151,46 @@ function SaaoHome() {
         ) : current ? (
           <>
             <StatusSteps status={current.status} />
-            <Deadline p={focus} daysBefore={daysBefore} done={!editable} />
-            <Link to={`/schedules/${current.id}`} className="btn btn-lg focus-cta">
-              {editable
-                ? fc !== undefined && fc < GROUP_COUNT ? `বাকি ${bn(GROUP_COUNT - fc)}টি গ্রুপ পূরণ করুন` : 'সূচি খুলুন'
-                : 'সূচি দেখুন'}
+            <div className="pk-row">
+              {([1, 2] as const).map((f) => {
+                const s = f === 1 ? current.first : current.second
+                return s
+                  ? <Link key={f} to={`/schedules/${s.id}`} className="pk"><b>{f === 1 ? '১ম' : '২য়'} পক্ষ</b><small>{filled[s.id] === undefined ? '…' : `${bn(filled[s.id])}/১২ পূরণ`}</small></Link>
+                  : <Link key={f} to={newLink} className="pk missing"><b>{f === 1 ? '১ম' : '২য়'} পক্ষ</b><small>তৈরি হয়নি</small></Link>
+              })}
+            </div>
+            <Deadline m={focus} daysBefore={daysBefore} done={!editable} />
+            <Link to={missing ? newLink : `/schedules/${current.main.id}`} className="btn btn-lg focus-cta">
+              {missing ? 'বাকি পক্ষের সূচি তৈরি করুন'
+                : editable ? fc < GROUP_COUNT * 2 ? `বাকি ${bn(GROUP_COUNT * 2 - fc)}টি গ্রুপ পূরণ করুন` : 'সূচি খুলে মাস জমা দিন'
+                  : 'সূচি দেখুন'}
               <Icon name="right" size={18} />
             </Link>
           </>
         ) : (
           <>
-            <p style={{ margin: '10px 0 4px' }}>এই পক্ষের সূচি এখনো তৈরি হয়নি।</p>
-            <Deadline p={focus} daysBefore={daysBefore} done={false} />
-            <Link to={newLink} className="btn btn-lg focus-cta">সূচি তৈরি করুন <Icon name="right" size={18} /></Link>
+            <p style={{ margin: '10px 0 4px' }}>এই মাসের সূচি এখনো তৈরি হয়নি।</p>
+            <Deadline m={focus} daysBefore={daysBefore} done={false} />
+            <Link to={newLink} className="btn btn-lg focus-cta">মাসের সূচি তৈরি করুন <Icon name="right" size={18} /></Link>
           </>
         )}
       </section>
 
       {extraBlocks.map((b) => {
-        const xs = list?.find((s) => s.start_date === periodStart(focus) && s.block_name === b.name) ?? null
+        const xg = ofMonth(focus, true, b.name)
         return (
           <section key={b.name} className="card xcard">
             <div className="xc-top">
               <span className="qa-ico"><Icon name="map" /></span>
               <div className="grow">
                 <div className="eyebrow">অতিরিক্ত দায়িত্ব</div>
-                <strong>{b.name} ব্লক · {periodTitle(focus)}</strong>
+                <strong>{b.name} ব্লক · {monthTitle(focus)}</strong>
               </div>
-              {xs ? <span className={`badge st-${xs.status}`}>{STATUS_SHORT[xs.status]}</span> : <span className="badge st-none">তৈরি হয়নি</span>}
+              {xg ? <span className={`badge st-${xg.status}`}>{STATUS_SHORT[xg.status]}</span> : <span className="badge st-none">তৈরি হয়নি</span>}
             </div>
-            {xs
-              ? <Link to={`/schedules/${xs.id}`} className="btn ghost-btn">সূচি খুলুন <Icon name="right" size={16} /></Link>
-              : <Link to={`/schedules/new?p=${focus.year}-${focus.month}-${focus.fortnight}&b=${encodeURIComponent(b.name)}`} className="btn ghost-btn">এই ব্লকের সূচি তৈরি করুন <Icon name="right" size={16} /></Link>}
+            {xg
+              ? <Link to={`/schedules/${xg.main.id}`} className="btn ghost-btn">সূচি খুলুন <Icon name="right" size={16} /></Link>
+              : <Link to={`${newLink}&b=${encodeURIComponent(b.name)}`} className="btn ghost-btn">এই ব্লকের মাসিক সূচি তৈরি করুন <Icon name="right" size={16} /></Link>}
           </section>
         )
       })}
@@ -183,34 +198,34 @@ function SaaoHome() {
       <div className="qa">
         <Link to={newLink} className="qa-item"><span className="qa-ico"><Icon name="calendarPlus" /></span><span>নতুন সূচি</span></Link>
         <Link to="/groups" className="qa-item"><span className="qa-ico"><Icon name="groups" /></span><span>আমার গ্রুপ{groupCount ? ` (${bn(groupCount)})` : ''}</span></Link>
-        {running
-          ? <Link to={`/schedules/${running.id}`} className="qa-item"><span className="qa-ico"><Icon name="calendar" /></span><span>চলতি পক্ষ</span></Link>
+        {now
+          ? <Link to={`/schedules/${now.main.id}`} className="qa-item"><span className="qa-ico"><Icon name="calendar" /></span><span>চলতি মাস</span></Link>
           : <Link to="/profile" className="qa-item"><span className="qa-ico"><Icon name="user" /></span><span>প্রোফাইল</span></Link>}
       </div>
 
       <section>
         <h2 className="sec-title">সব সূচি</h2>
-        {list && list.length === 0 && <div className="card empty"><Icon name="file" size={28} /><span>এখনো কোনো সূচি নেই।</span></div>}
-        {list && list.length > 0 && (
+        {list && months.length === 0 && <div className="card empty"><Icon name="file" size={28} /><span>এখনো কোনো সূচি নেই।</span></div>}
+        {months.length > 0 && (
           <div className="sched-list">
-            {list.map((s) => {
-              const p = schedulePeriod(s)
-              return (
-                <div key={s.id} className={`sched-card bar-${s.status}`}>
-                  <Link to={`/schedules/${s.id}`} className="sc-main">
-                    <span className="sc-date"><b>{p.fortnight === 1 ? '১ম' : '২য়'}</b><small>পক্ষ</small></span>
-                    <span className="grow">
-                      <strong>{periodTitle(p)}</strong>
-                      <span className="muted small">{periodRange(p)}{s.extra_charge ? ` · ${s.block_name} ব্লক (অতিরিক্ত)` : ''}</span>
+            {months.map((g) => (
+              <div key={g.key} className={`sched-card bar-${g.status}`}>
+                <Link to={`/schedules/${g.main.id}`} className="sc-main">
+                  <span className="sc-date"><b>{bn(g.month.month)}</b><small>মাস</small></span>
+                  <span className="grow">
+                    <strong>{monthTitle(g.month)}</strong>
+                    <span className="muted small">
+                      {g.first && g.second ? 'দুই পক্ষ' : g.first ? 'শুধু ১ম পক্ষ' : 'শুধু ২য় পক্ষ'}
+                      {g.extra ? ` · ${g.block} ব্লক (অতিরিক্ত)` : ''}
                     </span>
-                    <span className={`badge st-${s.status}`}>{STATUS_SHORT[s.status]}</span>
-                  </Link>
-                  {s.status === 'draft' && (
-                    <button type="button" className="icon-btn" aria-label="খসড়া মুছুন" onClick={() => void remove(s)}><Icon name="trash" size={18} /></button>
-                  )}
-                </div>
-              )
-            })}
+                  </span>
+                  <span className={`badge st-${g.status}`}>{STATUS_SHORT[g.status]}</span>
+                </Link>
+                {g.status === 'draft' && (
+                  <button type="button" className="icon-btn" aria-label="খসড়া মুছুন" onClick={() => void remove(g)}><Icon name="trash" size={18} /></button>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </section>
@@ -226,7 +241,7 @@ const STATE_LABEL: Record<RowState, string> = {
 function ReviewerHome() {
   const { profile } = useAuth()
   const today = todayISO()
-  const [period, setPeriod] = useState<Period>(planningPeriod(today))
+  const [month, setMonth] = useState<Month>(planningMonth(today))
   const [rows, setRows] = useState<SaaoRow[] | null>(null)
   const [newUsers, setNewUsers] = useState<number | null>(null)
   const [daysBefore, setDaysBefore] = useState(2)
@@ -234,8 +249,8 @@ function ReviewerHome() {
 
   useEffect(() => {
     setRows(null)
-    periodOverview(period).then(setRows).catch(() => setRows([]))
-  }, [period])
+    monthOverview(month).then(setRows).catch(() => setRows([]))
+  }, [month])
   useEffect(() => {
     pendingUsersCount('saao').then(setNewUsers).catch(() => setNewUsers(null))
     getSubmitDaysBefore().then(setDaysBefore).catch(() => undefined)
@@ -273,12 +288,12 @@ function ReviewerHome() {
 
       <section className="card">
         <div className="row between">
-          <button type="button" className="ghost sm" aria-label="আগের পক্ষ" onClick={() => setPeriod(prevPeriod(period))}><Icon name="left" size={18} /></button>
+          <button type="button" className="ghost sm" aria-label="আগের মাস" onClick={() => setMonth(prevMonth(month))}><Icon name="left" size={18} /></button>
           <div className="pcenter">
-            <h1>{periodTitle(period)}</h1>
-            <div className="muted small">{periodRange(period)} · <Deadline p={period} daysBefore={daysBefore} done={false} /></div>
+            <h1>{monthTitle(month)}</h1>
+            <div className="muted small">মাসিক সূচি (দুই পক্ষ) · <Deadline m={month} daysBefore={daysBefore} done={false} /></div>
           </div>
-          <button type="button" className="ghost sm" aria-label="পরের পক্ষ" onClick={() => setPeriod(nextPeriod(period))}><Icon name="right" size={18} /></button>
+          <button type="button" className="ghost sm" aria-label="পরের মাস" onClick={() => setMonth(nextMonth(month))}><Icon name="right" size={18} /></button>
         </div>
 
         <div className="tiles">
@@ -305,7 +320,7 @@ function ReviewerHome() {
                       <Avatar name={r.profile.full_name} size={34} />
                       <span>
                       <strong>{r.profile.full_name}</strong>
-                      <div className="muted small">{r.block ? `${r.block} ব্লক${r.extra ? ' (অতিরিক্ত দায়িত্ব)' : ''} · ` : ''}{bn(r.filled)}/১২ গ্রুপ</div>
+                      <div className="muted small">{r.block ? `${r.block} ব্লক${r.extra ? ' (অতিরিক্ত দায়িত্ব)' : ''} · ` : ''}{bn(r.filled)}/২৪ গ্রুপ{r.pokkhos < 2 ? ' · এক পক্ষ বাকি' : ''}</div>
                       </span>
                     </Link>
                   ) : (
@@ -327,7 +342,7 @@ function ReviewerHome() {
       </section>
 
       <div className="quick">
-        <Link to="/review" className="card linkcard"><Icon name="review" className="qi" /><strong>সূচি পর্যালোচনা</strong><span className="muted small">সব পক্ষের জমা পড়া সূচি</span></Link>
+        <Link to="/review" className="card linkcard"><Icon name="review" className="qi" /><strong>সূচি পর্যালোচনা</strong><span className="muted small">সব মাসের জমা পড়া সূচি</span></Link>
         <Link to="/admin" className="card linkcard"><Icon name="groups" className="qi" /><strong>ইউজার</strong><span className="muted small">{newUsers ? `${bn(newUsers)}জন নতুন সাইনআপ সক্রিয়ের অপেক্ষায়` : 'সাইনআপ সক্রিয় করা, ভূমিকা দেওয়া'}</span></Link>
         <Link to="/settings" className="card linkcard"><Icon name="settings" className="qi" /><strong>সেটিংস</strong><span className="muted small">সরকারি ছুটি, আলোচ্য বিষয়, ব্লক</span></Link>
       </div>

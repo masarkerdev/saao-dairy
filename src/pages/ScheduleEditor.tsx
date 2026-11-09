@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import EntryForm from '../components/EntryForm'
 import Icon from '../components/Icon'
 import { useFeedback } from '../components/Feedback'
@@ -9,16 +9,17 @@ import { useAuth } from '../lib/auth'
 import { holidayMap, listFarmerGroups, listHolidays, listTopics, saveFarmerGroup, topicsForMonth } from '../lib/catalog'
 import type { FarmerGroup } from '../lib/catalog'
 import { mobileError } from '../lib/mobile'
-import { badPlace, bn, periodEnd, periodRange, periodStart, periodTitle } from '../lib/period'
+import { badPlace, bn, monthTitle, periodEnd, periodRange, periodStart } from '../lib/period'
+import type { Period } from '../lib/period'
 import { fileBase, saveBlob } from '../lib/download'
 import { loadMonth, sheetTitle, signerLines } from '../lib/month'
 import type { MonthData } from '../lib/month'
 import type { HolidayMap } from '../lib/period'
 import {
-  GROUP_COUNT, STATUS_LABEL, changeStatus, takenPlaces, displayNumbers, emptyGroup, errMsg, filledCount, fmtTs, groupOrder, isFilled,
+  GROUP_COUNT, STATUS_LABEL, changeMonthStatus, countFilled, createSchedule, loadSibling, takenPlaces, displayNumbers, emptyGroup, errMsg, filledCount, fmtTs, groupOrder, isFilled,
   listEvents, loadSchedule, myPastTopics, rearranged, saveGroups, saveNotes, schedulePeriod,
 } from '../lib/schedules'
-import type { GroupInfo, GroupMap, LoadedSchedule, NoteMap, ScheduleEvent, Status } from '../lib/schedules'
+import type { GroupInfo, GroupMap, LoadedSchedule, NoteMap, Schedule, ScheduleEvent, Status } from '../lib/schedules'
 
 type SaveState = 'saved' | 'saving' | 'error'
 
@@ -34,12 +35,16 @@ export default function ScheduleEditor() {
   const { id } = useParams()
   const { profile } = useAuth()
   const { confirm, toast } = useFeedback()
+  const nav = useNavigate()
   const [data, setData] = useState<LoadedSchedule | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading')
   const [groups, setGroups] = useState<GroupMap>({})
   const [notes, setNotes] = useState<NoteMap>({})
   const [devStatus, setDevStatus] = useState<Status | ''>('')
   const [otherTaken, setOtherTaken] = useState<Set<string>>(new Set())
+  // একই মাসের অন্য পক্ষ (undefined = লোড হচ্ছে, null = তৈরি হয়নি)
+  const [sibling, setSibling] = useState<Schedule | null | undefined>(undefined)
+  const [sibFilled, setSibFilled] = useState<number | null>(null)
   const [holidays, setHolidays] = useState<HolidayMap>({})
   const [farmerGroups, setFarmerGroups] = useState<FarmerGroup[]>([])
   const [topicChoices, setTopicChoices] = useState<string[]>([])
@@ -65,6 +70,8 @@ export default function ScheduleEditor() {
   useEffect(() => {
     if (!id || !profile) return
     let alive = true
+    setSibling(undefined)
+    setSibFilled(null)
     ;(async () => {
       try {
         const d = await loadSchedule(id)
@@ -88,6 +95,11 @@ export default function ScheduleEditor() {
         setNotes(d.notes)
         setHolidays(holidayMap(hol))
         setFarmerGroups(fgs)
+        loadSibling(d.schedule).then(async (x) => {
+          if (!alive) return
+          setSibling(x)
+          setSibFilled(x ? await countFilled(x.id).catch(() => null) : null)
+        }).catch(() => alive && setSibling(null))
         if (canEdit) takenPlaces(d.schedule.saao_id, d.schedule.start_date, d.schedule.id).then((t) => alive && setOtherTaken(t)).catch(() => undefined)
         const seasonal = topicsForMonth(topics, per.month)
         setTopicChoices([...new Set([...past, ...seasonal])])
@@ -299,19 +311,22 @@ export default function ScheduleEditor() {
         jump(badMobiles[0])
         return toast('একটি মোবাইল নম্বর ঠিক নেই। ঠিক করে আবার জমা দিন।', 'err')
       }
-      if (filled < GROUP_COUNT) question = `১২টির মধ্যে ${bn(filled)}টি গ্রুপ পূরণ হয়েছে। তবুও জমা দেবেন? জমা দিলে আর সম্পাদনা করা যাবে না।`
+      if (!sibling) return toast(`এই মাসের ${period?.fortnight === 1 ? '২য়' : '১ম'} পক্ষের সূচি এখনো তৈরি হয়নি। উপরে "তৈরি করুন" চেপে দুই পক্ষ পূরণ করে জমা দিন।`, 'err')
+      const total = filled + (sibFilled ?? 0)
+      if (total < GROUP_COUNT * 2) question = `দুই পক্ষ মিলিয়ে ২৪টির মধ্যে ${bn(total)}টি গ্রুপ পূরণ হয়েছে (এই পক্ষে ${bn(filled)}, অন্য পক্ষে ${bn(sibFilled ?? 0)})। তবুও পুরো মাস জমা দেবেন? জমা দিলে আর সম্পাদনা করা যাবে না।`
     }
     if (!(await confirm(question, { ok: to === 'returned' ? 'ফেরত দিন' : 'হ্যাঁ, এগিয়ে যান', danger: to === 'returned' }))) return
     setBusy(true)
     try {
-      const updated = await changeStatus(id, from, to, to === 'submitted' ? undefined : note)
+      const updated = await changeMonthStatus(id, from, to, to === 'submitted' ? undefined : note)
       setData({ ...data, schedule: updated })
+      if (sibling) loadSibling(updated).then(setSibling).catch(() => undefined)
       setReviewNote('')
       if (to === 'submitted') setView('sheet')
       toast(
-        to === 'submitted' ? 'জমা হয়েছে। কো-এডমিন যাচাই করবেন।'
-          : to === 'forwarded' ? 'উপজেলা কৃষি অফিসারের কাছে পাঠানো হয়েছে'
-            : to === 'approved' ? 'অনুমোদিত হয়েছে' : 'মন্তব্যসহ ফেরত পাঠানো হয়েছে',
+        to === 'submitted' ? 'পুরো মাসের সূচি জমা হয়েছে। কো-এডমিন যাচাই করবেন।'
+          : to === 'forwarded' ? 'পুরো মাসের সূচি উপজেলা কৃষি অফিসারের কাছে পাঠানো হয়েছে'
+            : to === 'approved' ? 'পুরো মাসের সূচি অনুমোদিত হয়েছে' : 'মন্তব্যসহ পুরো মাসের সূচি ফেরত পাঠানো হয়েছে',
       )
       refreshEvents()
     } catch (e) {
@@ -337,16 +352,51 @@ export default function ScheduleEditor() {
         <div className="card head-card">
           <div className="hc-top">
             <div>
-              <h1>{periodTitle(period)}</h1>
+              <h1>{monthTitle(period)} · মাসিক সূচি</h1>
               {s.extra_charge && <span className="badge xc">অতিরিক্ত দায়িত্ব · {s.block_name} ব্লক</span>}
               <div className="muted">{periodRange(period)}{owner ? ` · ${signer.map((x) => x.replace(/,$/, '')).join(', ')}` : ''}</div>
             </div>
             <span className={`badge st-${s.status}`}>{STATUS_LABEL[s.status]}</span>
           </div>
+          <div className="pk-switch" role="tablist" aria-label="পক্ষ">
+            {([1, 2] as const).map((f) => {
+              const here = period.fortnight === f
+              const other = !here ? sibling : null
+              const p: Period = { year: period.year, month: period.month, fortnight: f }
+              const n = here ? filled : sibFilled
+              if (here) return (
+                <span key={f} className="pk on" role="tab" aria-selected="true">
+                  <b>{f === 1 ? '১ম' : '২য়'} পক্ষ</b><small>{periodRange(p)} · {bn(n ?? 0)}/১২</small>
+                </span>
+              )
+              if (other) return (
+                <Link key={f} to={`/schedules/${other.id}`} className="pk" role="tab" aria-selected="false">
+                  <b>{f === 1 ? '১ম' : '২য়'} পক্ষ</b><small>{periodRange(p)} · {n === null ? '…' : `${bn(n)}/১২`}</small>
+                </Link>
+              )
+              if (sibling === undefined) return <span key={f} className="pk muted"><b>{f === 1 ? '১ম' : '২য়'} পক্ষ</b><small>লোড হচ্ছে…</small></span>
+              return own && editable ? (
+                <button key={f} type="button" className="pk missing" disabled={busy} onClick={async () => {
+                  setBusy(true)
+                  try {
+                    const t = await takenPlaces(s.saao_id, periodStart(p), undefined, s.block_name ?? '').catch(() => new Set<string>())
+                    const made = await createSchedule(s.saao_id, p, holidays, farmerGroups.filter((x) => x.active).slice(0, GROUP_COUNT), s.block_name ?? '', t)
+                    toast(`${f === 1 ? '১ম' : '২য়'} পক্ষের সূচি তৈরি হয়েছে`)
+                    nav(`/schedules/${made.id}`)
+                  } catch (e) {
+                    toast(errMsg(e, 'তৈরি করা যায়নি।'), 'err')
+                  }
+                  setBusy(false)
+                }}>
+                  <b>{f === 1 ? '১ম' : '২য়'} পক্ষ</b><small>তৈরি হয়নি · তৈরি করুন</small>
+                </button>
+              ) : <span key={f} className="pk muted"><b>{f === 1 ? '১ম' : '২য়'} পক্ষ</b><small>তৈরি হয়নি</small></span>
+            })}
+          </div>
           <StatusSteps status={s.status} />
           <div className="progress" aria-label={`১২টির মধ্যে ${bn(filled)}টি গ্রুপ পূরণ`}>
             <div className="pbar"><span style={{ width: `${(filled / GROUP_COUNT) * 100}%` }} /></div>
-            <span>{bn(filled)}/১২ গ্রুপ পূরণ</span>
+            <span>এই পক্ষে {bn(filled)}/১২{sibFilled !== null && sibling ? ` · পুরো মাসে ${bn(filled + sibFilled)}/২৪` : ''}</span>
           </div>
           <div className="row" style={{ alignItems: 'center' }}>
             {editable && firstIncomplete && (
@@ -356,8 +406,8 @@ export default function ScheduleEditor() {
             <button type="button" className="ghost" disabled={!!exporting} onClick={() => void download('docx')}>{exporting === 'docx' ? 'Word তৈরি হচ্ছে…' : 'Word ডাউনলোড'}</button>
             <button type="button" className="ghost" onClick={print}>প্রিন্ট</button>
             {editable && (
-              <button type="button" disabled={busy} onClick={() => void act('submitted', ['draft', 'returned'], 'জমা দিলে কো-এডমিনের কাছে যাবে এবং আর সম্পাদনা করা যাবে না। জমা দেবেন?')}>
-                জমা দিন
+              <button type="button" disabled={busy} onClick={() => void act('submitted', ['draft', 'returned'], 'দুই পক্ষের সূচি একসাথে কো-এডমিনের কাছে যাবে এবং আর সম্পাদনা করা যাবে না। পুরো মাস জমা দেবেন?')}>
+                মাস জমা দিন (দুই পক্ষ)
               </button>
             )}
             {editable && (
@@ -398,8 +448,9 @@ export default function ScheduleEditor() {
                 if (!devStatus || !(await confirm(`অবস্থা "${STATUS_LABEL[s.status]}" থেকে "${STATUS_LABEL[devStatus]}" করবেন?`))) return
                 setBusy(true)
                 try {
-                  const updated = await changeStatus(id!, [s.status], devStatus, reviewNote.trim() || 'ডেভেলপার সংশোধন')
+                  const updated = await changeMonthStatus(id!, [...new Set([s.status, ...(sibling ? [sibling.status] : [])])], devStatus, reviewNote.trim() || 'ডেভেলপার সংশোধন')
                   setData({ ...data, schedule: updated })
+                  if (sibling) loadSibling(updated).then(setSibling).catch(() => undefined)
                   setDevStatus('')
                   setReviewNote('')
                   refreshEvents()
@@ -415,7 +466,8 @@ export default function ScheduleEditor() {
 
         {(canForward || canDecide) && (
           <div className="card review">
-            <strong>{canForward ? 'যাচাই (কো-এডমিন)' : 'সিদ্ধান্ত (উপজেলা কৃষি অফিসার)'}</strong>
+            <strong>{canForward ? 'যাচাই (কো-এডমিন)' : 'সিদ্ধান্ত (উপজেলা কৃষি অফিসার)'} · পুরো মাস</strong>
+            <p className="muted small" style={{ margin: 0 }}>সিদ্ধান্ত দুই পক্ষেই একসাথে প্রযোজ্য হবে। অন্য পক্ষ দেখতে উপরের পক্ষ বোতাম চাপুন বা "ফর্ম" ট্যাবে পুরো মাস দেখুন।</p>
             {canDecide && s.status === 'submitted' && (
               <p className="muted small" style={{ margin: 0 }}>কো-এডমিন এখনো যাচাই করেননি। চাইলে আপনি সরাসরি সিদ্ধান্ত দিতে পারেন।</p>
             )}
@@ -457,7 +509,7 @@ export default function ScheduleEditor() {
         <div className="noprint narrow">
           {editable && farmerGroups.length === 0 && (
             <div className="card hint-box">
-              আপনার কৃষক গ্রুপের তালিকা এখনো খালি। <Link to="/groups">আমার কৃষক গ্রুপ</Link> পেজে একবার গ্রুপগুলো লিখে রাখলে প্রতি পক্ষে শুধু বাছাই করলেই হবে।
+              আপনার কৃষক গ্রুপের তালিকা এখনো খালি। <Link to="/groups">আমার কৃষক গ্রুপ</Link> পেজে একবার গ্রুপগুলো লিখে রাখলে প্রতি মাসে শুধু বাছাই করলেই হবে।
             </div>
           )}
           <EntryForm period={period} holidays={holidays} groups={groups} displayNo={displayNo} notes={notes} readOnly={!editable}

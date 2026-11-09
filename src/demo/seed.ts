@@ -25,9 +25,11 @@ const KINDS = ['কৃষক গ্রুপ', 'আইপিএম ক্লা�
 const SEASON = ['আমন ধানে মাজরা পোকা ও বাদামী গাছফড়িং দমন', 'ধানক্ষেতে পার্চিং ও আলোক ফাঁদ', 'আমন ধান কাটা, মাড়াই ও সংরক্ষণ', 'শীতকালীন সবজির চারা উৎপাদন', 'আলুর জমি তৈরি ও বীজ শোধন', 'সরিষার উন্নত জাত ও বপন সময়', 'ইঁদুর দমন', 'মাটি পরীক্ষা ও সুষম সার প্রয়োগ', 'সবজিতে ফেরোমন ফাঁদ স্থাপন']
 const pick = <T,>(a: T[], i: number) => a[((i % a.length) + a.length) % a.length]
 
-export const DEMO_HOLIDAY = '2026-10-22'
+export const DEMO_HOLIDAY = '2026-11-12'
 const OCT1: Period = { year: 2026, month: 10, fortnight: 1 }
 const OCT2: Period = { year: 2026, month: 10, fortnight: 2 }
+const NOV1: Period = { year: 2026, month: 11, fortnight: 1 }
+const NOV2: Period = { year: 2026, month: 11, fortnight: 2 }
 
 function farmerGroups(saao: string, offset: number, n: number): Row[] {
   return Array.from({ length: n }, (_, i) => {
@@ -91,39 +93,65 @@ export function seed(): Record<string, Row[]> {
   const fgSumi = farmerGroups('u_sumi', 5, 12)
   const fgKamal = farmerGroups('u_kamal', 9, 12)
 
+  // অক্টোবর: সবার পুরো মাস অনুমোদিত। নভেম্বর (পরের মাস): রহিম খসড়া, সুমি জমা দিয়েছেন, কামাল উপজেলায়, আয়েশা তৈরি করেননি
+  const approved = (by: string, fwd: string) => ({
+    submitted_at: '2026-09-27T05:10:00.000Z', forwarded_by: fwd, forwarded_at: '2026-09-28T06:00:00.000Z',
+    approved_by: by, approved_at: '2026-09-29T09:30:00.000Z',
+  })
   const schedules = [
-    S('s_rahim_o1', 'u_rahim', '2026-10-01', 1, 'approved', {
-      submitted_at: '2026-09-28T05:10:00.000Z', forwarded_by: 'u_aao', forwarded_at: '2026-09-29T06:00:00.000Z',
-      approved_by: 'u_uao', approved_at: '2026-09-30T09:30:00.000Z',
+    S('s_rahim_o1', 'u_rahim', '2026-10-01', 1, 'approved', approved('u_uao', 'u_aao')),
+    S('s_rahim_o2', 'u_rahim', '2026-10-16', 2, 'approved', approved('u_uao', 'u_aao')),
+    S('s_sumi_o1', 'u_sumi', '2026-10-01', 1, 'approved', approved('u_uao', 'u_aeo')),
+    S('s_sumi_o2', 'u_sumi', '2026-10-16', 2, 'approved', approved('u_uao', 'u_aeo')),
+    S('s_kamal_o1', 'u_kamal', '2026-10-01', 1, 'approved', approved('u_uao', 'u_aao')),
+    S('s_kamal_o2', 'u_kamal', '2026-10-16', 2, 'approved', approved('u_uao', 'u_aao')),
+    // ছুটি তোলার আগে তৈরি: কয়েকটি গ্রুপ পড়েছে ১২ নভেম্বর (নমুনা ছুটি), "আবার সাজান" দেখানোর জন্য
+    S('s_rahim_n1', 'u_rahim', '2026-11-01', 1, 'draft', { month_label: 'নভেম্বর', created_at: '2026-10-20T03:00:00.000Z' }),
+    S('s_rahim_n2', 'u_rahim', '2026-11-16', 2, 'draft', { month_label: 'নভেম্বর', created_at: '2026-10-20T03:00:00.000Z' }),
+    S('s_sumi_n1', 'u_sumi', '2026-11-01', 1, 'submitted', { month_label: 'নভেম্বর', submitted_at: '2026-10-26T10:45:00.000Z' }),
+    S('s_sumi_n2', 'u_sumi', '2026-11-16', 2, 'submitted', { month_label: 'নভেম্বর', submitted_at: '2026-10-26T10:45:00.000Z' }),
+    S('s_kamal_n1', 'u_kamal', '2026-11-01', 1, 'forwarded', {
+      month_label: 'নভেম্বর', submitted_at: '2026-10-25T07:00:00.000Z', forwarded_by: 'u_aeo', forwarded_at: '2026-10-26T04:15:00.000Z', approver_note: 'সব গ্রুপের তথ্য ঠিক আছে।',
     }),
-    // ছুটি তোলার আগে তৈরি: গ্রুপ ৫-৬ পড়েছে ২২ অক্টোবর (ছুটি) — "আবার সাজান" দেখানোর জন্য
-    S('s_rahim_o2', 'u_rahim', '2026-10-16', 2, 'draft', { created_at: '2026-10-08T03:00:00.000Z' }),
-    S('s_sumi_o2', 'u_sumi', '2026-10-16', 2, 'submitted', { submitted_at: '2026-10-12T10:45:00.000Z' }),
-    S('s_kamal_o2', 'u_kamal', '2026-10-16', 2, 'forwarded', {
-      submitted_at: '2026-10-11T07:00:00.000Z', forwarded_by: 'u_aeo', forwarded_at: '2026-10-12T04:15:00.000Z',
-      approver_note: 'সব গ্রুপের তথ্য ঠিক আছে।',
+    S('s_kamal_n2', 'u_kamal', '2026-11-16', 2, 'forwarded', {
+      month_label: 'নভেম্বর', submitted_at: '2026-10-25T07:00:00.000Z', forwarded_by: 'u_aeo', forwarded_at: '2026-10-26T04:15:00.000Z', approver_note: 'সব গ্রুপের তথ্য ঠিক আছে।',
     }),
   ]
 
+  const second = (fgs: Row[]) => fgs.length > 12 ? [...fgs.slice(12), ...fgs].slice(0, 12) : fgs
   const schedule_groups = [
     ...scheduleGroups('s_rahim_o1', fgRahim, OCT1, {}, () => 3, 0),
-    ...scheduleGroups('s_rahim_o2', fgRahim, OCT2, {}, (i) => (i < 7 ? 2 : 0), 3),
-    ...scheduleGroups('s_sumi_o2', fgSumi, OCT2, hol, (i) => 2 + (i % 3), 1),
-    ...scheduleGroups('s_kamal_o2', fgKamal, OCT2, hol, (i) => 3 + (i % 2), 4),
+    ...scheduleGroups('s_rahim_o2', second(fgRahim), OCT2, {}, () => 3, 2),
+    ...scheduleGroups('s_sumi_o1', fgSumi, OCT1, {}, () => 3, 1),
+    ...scheduleGroups('s_sumi_o2', fgSumi, OCT2, {}, () => 2, 5),
+    ...scheduleGroups('s_kamal_o1', fgKamal, OCT1, {}, () => 3, 4),
+    ...scheduleGroups('s_kamal_o2', fgKamal, OCT2, {}, () => 2, 6),
+    ...scheduleGroups('s_rahim_n1', fgRahim, NOV1, {}, (i) => (i < 9 ? 2 : 0), 3),
+    ...scheduleGroups('s_rahim_n2', second(fgRahim), NOV2, {}, (i) => (i < 5 ? 2 : 0), 7),
+    ...scheduleGroups('s_sumi_n1', fgSumi, NOV1, hol, (i) => 2 + (i % 3), 1),
+    ...scheduleGroups('s_sumi_n2', fgSumi, NOV2, hol, (i) => 2 + (i % 2), 8),
+    ...scheduleGroups('s_kamal_n1', fgKamal, NOV1, hol, (i) => 3 + (i % 2), 4),
+    ...scheduleGroups('s_kamal_n2', fgKamal, NOV2, hol, () => 3, 9),
   ]
 
   const schedule_day_notes = [
-    { schedule_id: 's_sumi_o2', note_date: '2026-10-19', advisory_note: 'মাটি পরীক্ষার নমুনা গ্রহণ' },
-    { schedule_id: 's_kamal_o2', note_date: '2026-10-26', advisory_note: 'বালাইনাশক নিরাপদ ব্যবহারে পরামর্শ' },
+    { schedule_id: 's_sumi_n1', note_date: '2026-11-02', advisory_note: 'মাটি পরীক্ষার নমুনা গ্রহণ' },
+    { schedule_id: 's_kamal_n2', note_date: '2026-11-19', advisory_note: 'বালাইনাশক নিরাপদ ব্যবহারে পরামর্শ' },
   ]
 
+  const flow = (ids: string[], who: string, fwd: string, appr: string | null, sub: string, fw: string, ap: string | null, note: string | null = null) =>
+    ids.flatMap((id) => [
+      E(id, who, 'draft', 'submitted', sub),
+      E(id, fwd, 'submitted', 'forwarded', fw, note),
+      ...(appr && ap ? [E(id, appr, 'forwarded', 'approved', ap)] : []),
+    ])
   const schedule_events = [
-    E('s_rahim_o1', 'u_rahim', 'draft', 'submitted', '2026-09-28T05:10:00.000Z'),
-    E('s_rahim_o1', 'u_aao', 'submitted', 'forwarded', '2026-09-29T06:00:00.000Z'),
-    E('s_rahim_o1', 'u_uao', 'forwarded', 'approved', '2026-09-30T09:30:00.000Z'),
-    E('s_sumi_o2', 'u_sumi', 'draft', 'submitted', '2026-10-12T10:45:00.000Z'),
-    E('s_kamal_o2', 'u_kamal', 'draft', 'submitted', '2026-10-11T07:00:00.000Z'),
-    E('s_kamal_o2', 'u_aeo', 'submitted', 'forwarded', '2026-10-12T04:15:00.000Z', 'সব গ্রুপের তথ্য ঠিক আছে।'),
+    ...flow(['s_rahim_o1', 's_rahim_o2'], 'u_rahim', 'u_aao', 'u_uao', '2026-09-27T05:10:00.000Z', '2026-09-28T06:00:00.000Z', '2026-09-29T09:30:00.000Z'),
+    ...flow(['s_sumi_o1', 's_sumi_o2'], 'u_sumi', 'u_aeo', 'u_uao', '2026-09-27T05:10:00.000Z', '2026-09-28T06:00:00.000Z', '2026-09-29T09:30:00.000Z'),
+    ...flow(['s_kamal_o1', 's_kamal_o2'], 'u_kamal', 'u_aao', 'u_uao', '2026-09-27T05:10:00.000Z', '2026-09-28T06:00:00.000Z', '2026-09-29T09:30:00.000Z'),
+    E('s_sumi_n1', 'u_sumi', 'draft', 'submitted', '2026-10-26T10:45:00.000Z'),
+    E('s_sumi_n2', 'u_sumi', 'draft', 'submitted', '2026-10-26T10:45:00.000Z'),
+    ...flow(['s_kamal_n1', 's_kamal_n2'], 'u_kamal', 'u_aeo', null, '2026-10-25T07:00:00.000Z', '2026-10-26T04:15:00.000Z', null, 'সব গ্রুপের তথ্য ঠিক আছে।'),
   ]
 
   // ব্লক: সূচি ও গ্রুপ নিজ ব্লকের; রহিমকে বিনাজুরী ব্লকের অতিরিক্ত দায়িত্ব (sql/09)
@@ -138,8 +166,8 @@ export function seed(): Record<string, Row[]> {
 
   return {
     profiles, schedules, schedule_groups, schedule_day_notes, schedule_events, schedule_entries: [],
-    farmer_groups, block_charges,
-    holidays: [{ holiday_date: DEMO_HOLIDAY, name: 'নমুনা সরকারি ছুটি', created_at: '2026-10-10T04:00:00.000Z' }],
+    farmer_groups, block_charges, reminder_seen: [],
+    holidays: [{ holiday_date: DEMO_HOLIDAY, name: 'নমুনা সরকারি ছুটি', created_at: '2026-10-24T04:00:00.000Z' }],
     topic_suggestions: TOPICS.map(([topic, months], i) => ({ id: i + 1, topic, months, sort: i + 1, active: true })),
     locations: [
       ...UNIONS.map((name, i) => ({ id: i + 1, kind: 'union', name, sort: i + 1 })),

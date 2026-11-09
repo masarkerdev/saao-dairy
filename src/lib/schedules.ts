@@ -1,7 +1,8 @@
 import { supabase } from './supabase'
 import type { FarmerGroup } from './catalog'
 import { normalizeMobile } from './mobile'
-import { MONTHS, bn, freePlaces, periodOf, periodStart, placeKey } from './period'
+import { MONTHS, bn, freePlaces, monthPeriods, periodOf, periodStart, placeKey } from './period'
+import type { Month } from './period'
 import type { HolidayMap, Period, Place } from './period'
 import type { Profile } from '../types'
 
@@ -158,6 +159,60 @@ export async function createSchedule(userId: string, p: Period, holidays: Holida
   const r = await supabase.from('schedule_groups').insert(rows).select('group_no')
   if (r.error) throw r.error
   return created
+}
+
+// একই মাসের দুই পক্ষ একসাথে তৈরি (যেটা আগে থেকে আছে সেটা বাদ); ২য় পক্ষে তালিকার পরের ১২টি গ্রুপ
+export async function createMonth(
+  userId: string, m: Month, holidays: HolidayMap, prefill: FarmerGroup[], block: string,
+  taken: [Set<string>, Set<string>], existing: (Schedule | null)[],
+): Promise<Schedule> {
+  const ps = monthPeriods(m)
+  const n = prefill.length
+  const second = n > GROUP_COUNT ? Array.from({ length: Math.min(GROUP_COUNT, n) }, (_, i) => prefill[(GROUP_COUNT + i) % n]) : prefill
+  const made: Schedule[] = []
+  for (let i = 0; i < 2; i++) {
+    if (existing[i]) { made.push(existing[i]!); continue }
+    made.push(await createSchedule(userId, ps[i], holidays, i === 0 ? prefill.slice(0, GROUP_COUNT) : second, block, taken[i]))
+  }
+  return made[0]
+}
+
+// একই মাসের অন্য পক্ষ
+export async function loadSibling(s: Pick<Schedule, 'saao_id' | 'block_name' | 'start_date'>): Promise<Schedule | null> {
+  const start = s.start_date.endsWith('-01') ? `${s.start_date.slice(0, 8)}16` : `${s.start_date.slice(0, 8)}01`
+  const { data, error } = await supabase.from('schedules').select('*')
+    .eq('saao_id', s.saao_id).eq('block_name', s.block_name ?? '').eq('start_date', start).maybeSingle()
+  if (error) throw error
+  return (data as Schedule | null) ?? null
+}
+
+// পুরো মাসের (দুই পক্ষের) অবস্থা একসাথে বদলানো (sql/12_monthly.sql)
+export async function changeMonthStatus(id: string, from: Status[], to: Status, note?: string): Promise<Schedule> {
+  const { data, error } = await supabase.rpc('change_month_status', { sid: id, from_statuses: from, to_status: to, note: note ?? null })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row) throw new Error('সূচিটি আর এই অবস্থায় নেই। পেজ রিফ্রেশ করে দেখুন।')
+  return row as Schedule
+}
+
+// মাস অনুযায়ী ভাগ: একই এসএএও, একই ব্লক, একই মাস
+export const monthKeyOf = (s: Pick<Schedule, 'saao_id' | 'block_name' | 'start_date'>) => `${s.saao_id}|${s.block_name ?? ''}|${s.start_date.slice(0, 7)}`
+export interface MonthGroup { key: string; month: Month; block: string; extra: boolean; first: Schedule | null; second: Schedule | null; main: Schedule; status: Status }
+export function groupByMonth(list: Schedule[]): MonthGroup[] {
+  const map = new Map<string, MonthGroup>()
+  for (const s of list) {
+    const k = monthKeyOf(s)
+    const p = periodOf(s.start_date)
+    const g = map.get(k) ?? { key: k, month: { year: p.year, month: p.month }, block: s.block_name ?? '', extra: !!s.extra_charge, first: null, second: null, main: s, status: s.status }
+    if (p.fortnight === 1) g.first = s; else g.second = s
+    g.main = g.first ?? g.second ?? s
+    // দুই পক্ষের অবস্থা আলাদা হলে (পুরোনো তথ্য) যেটা পিছিয়ে আছে সেটাই
+    const order: Status[] = ['returned', 'draft', 'submitted', 'forwarded', 'approved']
+    const sts = [g.first?.status, g.second?.status].filter(Boolean) as Status[]
+    g.status = sts.sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] ?? s.status
+    map.set(k, g)
+  }
+  return [...map.values()].sort((a, b) => (a.main.start_date < b.main.start_date ? 1 : -1))
 }
 
 export async function deleteSchedule(id: string) {

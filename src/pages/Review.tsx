@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { listForReview } from '../lib/review'
 import type { ReviewRow } from '../lib/review'
-import { periodRange, toISO, fmtDate } from '../lib/period'
-import { STATUS_LABEL, bn, schedulePeriod } from '../lib/schedules'
+import { monthTitle, toISO, fmtDate } from '../lib/period'
+import { STATUS_LABEL, bn, monthKeyOf, schedulePeriod } from '../lib/schedules'
 import type { Status } from '../lib/schedules'
 
 type Tab = Status | 'all'
@@ -40,8 +40,17 @@ export default function Review() {
 
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase()
-    if (!rows || !t) return rows
-    return rows.filter((s) =>
+    if (!rows) return rows
+    // মাসে একবার জমা: একই এসএএও-ব্লক-মাসের দুই পক্ষ একটি সারি (১ম পক্ষ আগে)
+    const seen = new Set<string>()
+    const one = [...rows].sort((a, b) => (a.start_date < b.start_date ? -1 : 1)).filter((s) => {
+      const k = monthKeyOf(s)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    }).sort((a, b) => (a.start_date < b.start_date ? 1 : -1))
+    if (!t) return one
+    return one.filter((s) =>
       [s.owner?.full_name, s.block_name, s.owner?.block_name, s.owner?.union_name, s.month_label].some((v) => (v ?? '').toLowerCase().includes(t)),
     )
   }, [rows, q])
@@ -77,7 +86,7 @@ export default function Review() {
                   {(s.block_name || s.owner?.block_name) ? ` · ${s.block_name || s.owner?.block_name} ব্লক` : ''}
                   {s.extra_charge && <span className="badge xc">অতিরিক্ত দায়িত্ব</span>}
                   <div className="muted">
-                    {s.month_label} · {s.fortnight === 1 ? '১ম' : '২য়'} পক্ষ ({periodRange(schedulePeriod(s))})
+                    {monthTitle(schedulePeriod(s))} · মাসিক সূচি (দুই পক্ষ)
                     {s.submitted_at ? ` · জমা ${fmtDate(toISO(new Date(s.submitted_at)))}` : ''}
                     {s.owner?.mobile ? ` · ${bn(s.owner.mobile)}` : ''}
                   </div>

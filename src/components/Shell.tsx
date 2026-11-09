@@ -10,7 +10,7 @@ import { ReminderBanner, ReminderBell, useReminders } from './Reminders'
 export default function Shell({ children }: { children: ReactNode }) {
   const { profile } = useAuth()
   const { pathname } = useLocation()
-  const reminders = useReminders()
+  const { items: reminders, seen } = useReminders()
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   if (!profile) return <>{children}</>
   const rev = isReviewer(profile.role)
@@ -43,7 +43,7 @@ export default function Shell({ children }: { children: ReactNode }) {
             </span>
           </Link>
           {nav('topnav')}
-          <ReminderBell items={reminders} />
+          <ReminderBell items={reminders} onSeen={seen} />
           <Link to="/profile" className="me" aria-label="প্রোফাইল">
             <span className="me-text">
               <span className="wname">{profile.full_name}</span>
@@ -54,7 +54,7 @@ export default function Shell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="shell-main">
-        <ReminderBanner items={reminders} />
+        <ReminderBanner items={reminders} onSeen={seen} />
         {children}
       </main>
       {nav('tabbar noprint')}

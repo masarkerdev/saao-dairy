@@ -1,18 +1,23 @@
-// অ্যাপের ভেতরের মনে করিয়ে দেওয়া (ঘণ্টা-আইকন ও হোমের উপরের সতর্কবার্তা)
-//  • এসএএও: পরের পক্ষের সূচি জমার শেষ তারিখ কাছে/পার হয়েছে (প্রতিটি ব্লকের আলাদা), ফেরত আসা সূচি
-//  • কো-এডমিন/এডমিন: যাচাই/অনুমোদন বাকি, শেষ তারিখ কাছে অথচ জমা দেননি এমন এসএএও
-//  • ডেভেলপার ও যাচাইকারী: অনুমোদনের অপেক্ষায় নতুন সাইনআপ
+// ঘণ্টা-আইকনের বার্তা (অ্যাপের ভেতরে)
+//  • এসএএও: পরের মাসের সূচি জমার শেষ তারিখ কাছে/পার (প্রতিটি ব্লক আলাদা), সূচি ফেরত এসেছে,
+//    সূচি যাচাই হয়ে উপজেলা কৃষি অফিসারের কাছে গেছে, সূচি অনুমোদিত হয়েছে
+//  • কো-এডমিন/এডমিন: যাচাই/অনুমোদন বাকি, শেষ তারিখ কাছে অথচ জমা পড়েনি এমন ব্লক, নতুন এসএএও সাইনআপ
+//  • ডেভেলপার: কর্মকর্তাদের নতুন সাইনআপ
+// একবার দেখলে (ঘণ্টা খুললে বা ফিতা বন্ধ করলে) বার্তাটি আর দেখায় না (sql/12: reminder_seen)।
+// শেষ তারিখ ও বাকি কাজের বার্তা প্রতিদিন নতুন করে আসে, যতক্ষণ কাজটি বাকি থাকে।
 import { pendingUsersCount } from './admin'
 import { blocksFor, listCharges } from './blocks'
 import { getSubmitDaysBefore } from './catalog'
-import { periodOverview } from './dashboard'
-import { bn, daysBetween, deadlineFor, fmtDayMonth, periodStart, periodTitle, planningPeriod, todayISO } from './period'
-import { countByStatus } from './review'
-import { listMySchedules, schedulePeriod } from './schedules'
+import { monthOverview } from './dashboard'
+import { bn, daysBetween, fmtDayMonth, monthDeadline, monthPeriods, monthStart, monthTitle, planningMonth, sameMonth, todayISO } from './period'
+import { listForReview } from './review'
+import { groupByMonth, listMySchedules, monthKeyOf, schedulePeriod } from './schedules'
+import type { Schedule } from './schedules'
+import { supabase } from './supabase'
 import type { Profile } from '../types'
 import { isDeveloper, isReviewer } from '../types'
 
-export type Level = 'urgent' | 'soon' | 'info'
+export type Level = 'urgent' | 'soon' | 'info' | 'good'
 export interface Reminder {
   id: string
   level: Level
@@ -29,35 +34,82 @@ const when = (left: number, dl: string) =>
     : left === 0 ? `আজই শেষ দিন (${fmtDayMonth(dl)})`
       : `শেষ সময় ${fmtDayMonth(dl)}, ${bn(left)} দিন বাকি`
 
+// ---- দেখা হয়েছে ----
+export async function listSeen(userId: string): Promise<Set<string>> {
+  const { data } = await supabase.from('reminder_seen').select('item_id').eq('user_id', userId)
+  return new Set(((data ?? []) as { item_id: string }[]).map((r) => r.item_id))
+}
+export async function markSeen(userId: string, ids: string[]) {
+  if (!ids.length) return
+  await supabase.from('reminder_seen').upsert(ids.map((item_id) => ({ user_id: userId, item_id })), { onConflict: 'user_id,item_id' })
+}
+
+// এসএএও-র সূচিতে কর্মকর্তাদের সিদ্ধান্ত (গত ৬০ দিন); দুই পক্ষের একই সিদ্ধান্ত একটি বার্তা
+interface Ev { id: number; schedule_id: string; to_status: string; note: string | null; created_at: string; actor_id: string | null; actor: { full_name: string; designation: string | null } | null }
+async function decisionNotices(profile: Profile, list: Schedule[]): Promise<Reminder[]> {
+  if (!list.length) return []
+  const since = new Date(Date.now() - 60 * 86400000).toISOString()
+  const { data } = await supabase.from('schedule_events')
+    .select('id,schedule_id,to_status,note,created_at,actor_id,actor:profiles!actor_id(full_name,designation)')
+    .in('schedule_id', list.map((s) => s.id))
+    .in('to_status', ['forwarded', 'approved', 'returned'])
+    .gte('created_at', since)
+    .order('id', { ascending: false })
+  const byId = new Map(list.map((s) => [s.id, s]))
+  const out: Reminder[] = []
+  const done = new Set<string>()
+  for (const e of (data ?? []) as unknown as Ev[]) {
+    if (e.actor_id === profile.id) continue
+    const s = byId.get(e.schedule_id)
+    if (!s) continue
+    const k = `${monthKeyOf(s)}|${e.to_status}|${e.created_at.slice(0, 16)}`
+    if (done.has(k)) continue
+    done.add(k)
+    const title = `${monthTitle(schedulePeriod(s))}${s.extra_charge ? ` (${s.block_name} ব্লক)` : ''}`
+    const who = e.actor?.full_name ? `${e.actor.full_name}${e.actor.designation ? `, ${e.actor.designation}` : ''}` : ''
+    const at = fmtDayMonth(e.created_at.slice(0, 10))
+    if (e.to_status === 'forwarded') {
+      out.push({ id: `ev-${e.id}`, level: 'good', to: `/schedules/${s.id}`,
+        text: `${title}-এর সূচি যাচাই হয়ে উপজেলা কৃষি অফিসারের কাছে পাঠানো হয়েছে`,
+        sub: [who && `পাঠিয়েছেন ${who}`, at, e.note && `মন্তব্য: ${e.note}`].filter(Boolean).join(' · ') })
+    } else if (e.to_status === 'approved') {
+      out.push({ id: `ev-${e.id}`, level: 'good', to: `/schedules/${s.id}`,
+        text: `${title}-এর সূচি অনুমোদিত হয়েছে`,
+        sub: [who && `অনুমোদন দিয়েছেন ${who}`, at, e.note && `মন্তব্য: ${e.note}`].filter(Boolean).join(' · ') })
+    } else {
+      out.push({ id: `ev-${e.id}`, level: 'urgent', to: `/schedules/${s.id}`,
+        text: `${title}-এর সূচি সংশোধনের জন্য ফেরত এসেছে`,
+        sub: [who && `ফেরত দিয়েছেন ${who}`, e.note && `মন্তব্য: ${e.note}`].filter(Boolean).join(' · ') })
+    }
+  }
+  return out
+}
+
 export async function loadReminders(profile: Profile): Promise<Reminder[]> {
   const today = todayISO()
   const out: Reminder[] = []
   const daysBefore = await getSubmitDaysBefore().catch(() => 2)
-  const p = planningPeriod(today)
-  const dl = deadlineFor(p, daysBefore)
+  const m = planningMonth(today)
+  const dl = monthDeadline(m, daysBefore)
   const left = daysBetween(today, dl)
-  // পক্ষ শুরু হয়ে গেলে ওই পক্ষের জমার কথা আর বলা হয় না
-  const stillRelevant = today < periodStart(p)
+  // মাস শুরু হয়ে গেলে ওই মাসের জমার কথা আর বলা হয় না
+  const stillRelevant = today < monthStart(m)
 
   if (profile.role === 'saao') {
     const [list, charges] = await Promise.all([listMySchedules(profile.id), listCharges(profile.id).catch(() => [])])
-    for (const s of list.filter((x) => x.status === 'returned')) {
-      out.push({
-        id: `ret-${s.id}`, level: 'urgent', to: `/schedules/${s.id}`,
-        text: `${periodTitle(schedulePeriod(s))}${s.extra_charge ? ` (${s.block_name} ব্লক)` : ''} সংশোধনের জন্য ফেরত এসেছে`,
-        sub: s.approver_note ? `মন্তব্য: ${s.approver_note}` : 'ঠিক করে আবার জমা দিন',
-      })
-    }
+    out.push(...(await decisionNotices(profile, list).catch(() => [])))
     if (stillRelevant && left <= REMIND_DAYS) {
-      for (const b of blocksFor(profile, charges, p)) {
-        const s = list.find((x) => x.start_date === periodStart(p) && (b.extra ? x.block_name === b.name : !x.extra_charge))
-        if (s && s.status !== 'draft') continue // জমা হয়ে গেছে (ফেরত আসাগুলো উপরে)
+      const months = groupByMonth(list)
+      for (const b of blocksFor(profile, charges, monthPeriods(m)[0])) {
+        const g = months.find((x) => sameMonth(x.month, m) && (b.extra ? x.block === b.name : !x.extra))
+        if (g && g.first && g.second && g.status !== 'draft' && g.status !== 'returned') continue // জমা হয়ে গেছে
         const blk = b.extra ? ` · ${b.name} ব্লক (অতিরিক্ত দায়িত্ব)` : ''
+        const what = !g ? 'এখনো তৈরি হয়নি' : !(g.first && g.second) ? 'এক পক্ষ এখনো তৈরি হয়নি' : 'জমা দেওয়া হয়নি'
         out.push({
-          id: `due-${periodStart(p)}-${b.name}`,
+          id: `due-${monthStart(m)}-${b.name}-${today}`,
           level: left <= 1 ? 'urgent' : 'soon',
-          to: s ? `/schedules/${s.id}` : `/schedules/new?p=${p.year}-${p.month}-${p.fortnight}${b.extra ? `&b=${encodeURIComponent(b.name)}` : ''}`,
-          text: `${periodTitle(p)}${blk}: সূচি ${s ? 'জমা দেওয়া হয়নি' : 'এখনো তৈরি হয়নি'}`,
+          to: g && g.first && g.second ? `/schedules/${g.main.id}` : `/schedules/new?m=${m.year}-${m.month}${b.extra ? `&b=${encodeURIComponent(b.name)}` : ''}`,
+          text: `${monthTitle(m)}${blk}: মাসিক সূচি ${what}`,
           sub: when(left, dl),
         })
       }
@@ -66,14 +118,15 @@ export async function loadReminders(profile: Profile): Promise<Reminder[]> {
 
   if (isReviewer(profile.role)) {
     const mine = profile.role === 'admin' ? 'forwarded' : 'submitted'
-    const [n, rows] = await Promise.all([
-      countByStatus(mine, profile.id).catch(() => 0),
-      stillRelevant && left <= REMIND_DAYS ? periodOverview(p).catch(() => []) : Promise.resolve([]),
+    const [pending, rows] = await Promise.all([
+      listForReview(mine, profile.id).catch(() => []),
+      stillRelevant && left <= REMIND_DAYS ? monthOverview(m).catch(() => []) : Promise.resolve([]),
     ])
+    const n = new Set(pending.map(monthKeyOf)).size
     if (n > 0) {
       out.push({
-        id: `review-${mine}-${n}`, level: 'soon', to: '/review',
-        text: profile.role === 'admin' ? `${bn(n)}টি সূচি আপনার অনুমোদনের অপেক্ষায়` : `${bn(n)}টি সূচি আপনার যাচাইয়ের অপেক্ষায়`,
+        id: `review-${mine}-${n}-${today}`, level: 'soon', to: '/review',
+        text: profile.role === 'admin' ? `${bn(n)}টি মাসিক সূচি আপনার অনুমোদনের অপেক্ষায়` : `${bn(n)}টি মাসিক সূচি আপনার যাচাইয়ের অপেক্ষায়`,
         sub: 'পর্যালোচনা পেজে দেখুন',
       })
     }
@@ -81,8 +134,8 @@ export async function loadReminders(profile: Profile): Promise<Reminder[]> {
     const names = [...new Set(notYet.map((r) => r.profile.full_name))]
     if (notYet.length) {
       out.push({
-        id: `notyet-${periodStart(p)}-${notYet.length}`, level: left <= 0 ? 'urgent' : 'soon', to: '/',
-        text: `${periodTitle(p)}: ${bn(notYet.length)}টি ব্লকের সূচি এখনো জমা পড়েনি`,
+        id: `notyet-${monthStart(m)}-${notYet.length}-${today}`, level: left <= 0 ? 'urgent' : 'soon', to: '/',
+        text: `${monthTitle(m)}: ${bn(notYet.length)}টি ব্লকের মাসিক সূচি এখনো জমা পড়েনি`,
         sub: `${when(left, dl)} · ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` সহ ${bn(names.length)} জন` : ''}`,
       })
     }
@@ -99,6 +152,7 @@ export async function loadReminders(profile: Profile): Promise<Reminder[]> {
     }
   }
 
-  const rank: Record<Level, number> = { urgent: 0, soon: 1, info: 2 }
-  return out.sort((a, b) => rank[a.level] - rank[b.level])
+  const seen = await listSeen(profile.id).catch(() => new Set<string>())
+  const rank: Record<Level, number> = { urgent: 0, soon: 1, good: 2, info: 3 }
+  return out.filter((r) => !seen.has(r.id)).sort((a, b) => rank[a.level] - rank[b.level])
 }

@@ -123,12 +123,12 @@ export default function Settings() {
       <section className="card sec">
         <h2>জমার শেষ সময়</h2>
         <div className="row" style={{ alignItems: 'center' }}>
-          <span>পক্ষ শুরুর</span>
+          <span>মাস শুরুর</span>
           <input type="number" min={0} max={15} style={{ width: '5em' }} value={days ?? ''} onChange={(e) => setDays(Number(e.target.value))} aria-label="দিন" />
           <span>দিন আগে</span>
           <button type="button" className="ghost" onClick={() => void saveDays()}>সেভ করুন</button>
         </div>
-        <p className="muted small">যেমন ২ দিলে ১৬ তারিখের পক্ষের সূচি ১৪ তারিখের মধ্যে জমা দিতে হবে। হোমে বাকি দিন দেখাবে।</p>
+        <p className="muted small">মাসের দুই পক্ষের সূচি একসাথে জমা হয়। যেমন ২ দিলে ডিসেম্বরের সূচি ২৯ নভেম্বরের মধ্যে জমা দিতে হবে। শেষ তারিখের ৩ দিন আগে থেকে এসএএও-রা ঘণ্টায় মনে করিয়ে দেওয়ার বার্তা পাবেন।</p>
       </section>
 
       <section className="card sec">

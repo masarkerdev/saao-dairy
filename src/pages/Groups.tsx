@@ -204,7 +204,7 @@ export default function Groups() {
         <div className="card empty">
           <Icon name="groups" size={34} />
           <strong>এখনো কোনো গ্রুপ নেই</strong>
-          <span className="muted small">গ্রুপের নাম, ঠিকানা ও মোবাইল একবার লিখে রাখুন, প্রতি পক্ষে আর লিখতে হবে না।</span>
+          <span className="muted small">গ্রুপের নাম, ঠিকানা ও মোবাইল একবার লিখে রাখুন, প্রতি মাসে আর লিখতে হবে না।</span>
           <button type="button" onClick={() => setOpen(true)}><Icon name="plus" size={18} /> প্রথম গ্রুপ যোগ করুন</button>
         </div>
       )}

@@ -69,6 +69,21 @@ export function periodRange(p: Period) {
   return `${bn(p.fortnight === 1 ? 1 : 16)}-${bn(e)} ${MONTHS[p.month - 1]}`
 }
 
+// ---- মাস: দুই পক্ষ একসাথে জমা ----
+export interface Month { year: number; month: number }
+export const monthOf = (p: Pick<Period, 'year' | 'month'>): Month => ({ year: p.year, month: p.month })
+export const monthPeriods = (m: Month): [Period, Period] => [{ ...m, fortnight: 1 }, { ...m, fortnight: 2 }]
+export const monthStart = (m: Month) => periodStart({ ...m, fortnight: 1 })
+export const monthEnd = (m: Month) => periodEnd({ ...m, fortnight: 2 })
+export const nextMonth = (m: Month): Month => (m.month === 12 ? { year: m.year + 1, month: 1 } : { year: m.year, month: m.month + 1 })
+export const prevMonth = (m: Month): Month => (m.month === 1 ? { year: m.year - 1, month: 12 } : { year: m.year, month: m.month - 1 })
+export const sameMonth = (a: Month, b: Month) => a.year === b.year && a.month === b.month
+export const monthTitle = (m: Month) => `${MONTHS[m.month - 1]} ${bn(m.year)}`
+// এখন যে মাসের সূচি তৈরি ও জমা দেওয়ার কথা: পরের মাস
+export const planningMonth = (todayIso: string): Month => nextMonth(monthOf(periodOf(todayIso)))
+// মাস শুরুর কত দিন আগে জমা দিতে হবে
+export const monthDeadline = (m: Month, daysBefore: number) => addDays(monthStart(m), -daysBefore)
+
 // পক্ষ শুরুর কত দিন আগে জমা দিতে হবে
 export const deadlineFor = (p: Period, daysBefore: number) => addDays(periodStart(p), -daysBefore)
 export const daysBetween = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / 86400000)

@@ -8,7 +8,7 @@ type DB = Record<string, Row[]>
 type Err = { message: string; code?: string }
 type Res = { data: any; error: Err | null; count?: number | null }
 
-const KEY = 'saao-demo-db-v7'
+const KEY = 'saao-demo-db-v8'
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
 
 function load(): DB {
@@ -83,7 +83,8 @@ function canRead(table: string, r: Row): boolean {
   if (table === 'locations') return true
   if (!uid) return false
   switch (table) {
-    case 'profiles': return r.id === uid || reviewer() || developer()
+    case 'profiles': return r.id === uid || reviewer() || developer() || ['admin', 'coadmin'].includes(r.role)
+    case 'reminder_seen': return r.user_id === uid
     case 'schedules': return r.saao_id === uid || reviewer()
     case 'farmer_groups': return r.saao_id === uid || reviewer()
     case 'block_charges': return r.saao_id === uid || reviewer()
@@ -101,6 +102,7 @@ const ownEditable = (scheduleId: string) => {
 function canWrite(table: string, r: Row): boolean {
   switch (table) {
     case 'holidays': case 'locations': case 'topic_suggestions': case 'app_settings': case 'block_charges': return reviewer()
+    case 'reminder_seen': return r.user_id === uid
     case 'farmer_groups': return r.saao_id === uid && active()
     case 'schedule_groups': case 'schedule_day_notes': return ownEditable(r.schedule_id)
     case 'schedules': return r.saao_id === uid && r.status === 'draft' && active() // শুধু মোছার জন্য
@@ -255,6 +257,7 @@ const KEYS: Record<string, string[]> = {
   schedule_day_notes: ['schedule_id', 'note_date'],
   holidays: ['holiday_date'],
   app_settings: ['key'],
+  reminder_seen: ['user_id', 'item_id'],
 }
 
 type Filter = (r: Row) => boolean
@@ -425,6 +428,29 @@ class Query implements PromiseLike<Res> {
 
 // sql/08_delete_user.sql-এর মতো
 async function rpc(name: string, args: Row) {
+  if (name === 'change_month_status') {
+    // sql/12-এর মতো: একই মাসের দুই পক্ষ একসাথে; একটিতে সমস্যা হলে কোনোটাই বদলায় না
+    const s = db.schedules.find((x) => x.id === args.sid)
+    if (!s) return delay({ data: null, error: fail('সূচি পাওয়া যায়নি') })
+    const ym = String(s.start_date).slice(0, 7)
+    const both = db.schedules.filter((x) => x.saao_id === s.saao_id && (x.block_name ?? '') === (s.block_name ?? '') && String(x.start_date).slice(0, 7) === ym)
+      .sort((a, b) => (a.start_date < b.start_date ? -1 : 1))
+    if (both.length < 2 && args.to_status === 'submitted') return delay({ data: null, error: fail('এই মাসের অন্য পক্ষের সূচি এখনো তৈরি হয়নি। দুই পক্ষ পূরণ করে একসাথে জমা দিন।') })
+    const targets = both.filter((x) => (args.from_statuses as string[]).includes(x.status))
+    if (!targets.length) return delay({ data: null, error: fail('সূচিটি আর এই অবস্থায় নেই। পেজ রিফ্রেশ করে দেখুন।') })
+    const backup = JSON.stringify({ schedules: db.schedules, schedule_events: db.schedule_events })
+    for (const old of targets) {
+      const canTouch = (old.saao_id === uid && ['draft', 'returned'].includes(old.status) && active()) || reviewer()
+      const { row, err } = canTouch ? guardSchedule(old, { status: args.to_status, approver_note: args.note ?? null }) : { row: undefined, err: fail('এই পরিবর্তনের অনুমতি নেই') }
+      if (err || !row) {
+        const b = JSON.parse(backup); db.schedules = b.schedules; db.schedule_events = b.schedule_events
+        return delay({ data: null, error: err ?? fail('এই পরিবর্তনের অনুমতি নেই') })
+      }
+      Object.assign(old, row)
+    }
+    persist()
+    return delay({ data: [db.schedules.find((x) => x.id === args.sid)], error: null })
+  }
   if (name === 'reset_user_password') {
     // sql/11-এর মতো; ডেমোতে আসল পাসওয়ার্ড নেই, শুধু নিয়ম যাচাই
     const r = role()
