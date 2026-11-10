@@ -1,0 +1,23 @@
+{
+  "name": "পাক্ষিক ভ্রমণসূচী · রাউজান",
+  "short_name": "ভ্রমণসূচী",
+  "description": "উপসহকারী কৃষি কর্মকর্তাদের মাসিক/পাক্ষিক ভ্রমণসূচী: তৈরি, জমা, যাচাই ও অনুমোদন",
+  "lang": "bn",
+  "dir": "ltr",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef1ea",
+  "theme_color": "#1f6b3a",
+  "categories": ["productivity", "business"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "নতুন সূচি", "url": "/schedules/new", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "আমার গ্রুপ", "url": "/groups", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

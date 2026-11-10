@@ -6,6 +6,9 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { FeedbackProvider } from './components/Feedback'
 import { AuthProvider } from './lib/auth'
 import './index.css'
+import { registerSW } from './lib/pwa'
+
+registerSW()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

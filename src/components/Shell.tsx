@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth'
 import { isDeveloper, isReviewer, roleTitle } from '../types'
 import Icon, { Avatar } from './Icon'
 import { ReminderBanner, ReminderBell, useReminders } from './Reminders'
+import { AppTip } from './AppSetup'
 
 // লগইনের পরের সব পেজ: উপরে অ্যাপ-বার (ডেস্কটপে মেনুসহ), মোবাইলে নিচে আইকনসহ মেনু
 export default function Shell({ children }: { children: ReactNode }) {
@@ -55,6 +56,7 @@ export default function Shell({ children }: { children: ReactNode }) {
       </header>
       <main className="shell-main">
         <ReminderBanner items={reminders} onSeen={seen} />
+        <AppTip />
         {children}
       </main>
       {nav('tabbar noprint')}

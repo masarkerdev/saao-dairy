@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { forgetThisDevice } from './pwa'
 import type { Profile } from '../types'
 
 interface AuthState {
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile])
 
   const signOut = useCallback(async () => {
+    await forgetThisDevice() // এই ফোনে আর এই একাউন্টের নোটিফিকেশন নয়
     await supabase.auth.signOut()
     setProfile(null)
   }, [])

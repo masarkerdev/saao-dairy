@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Field } from '../components/AuthLayout'
 import { useFeedback } from '../components/Feedback'
+import AppSetup from '../components/AppSetup'
 import Icon, { Avatar } from '../components/Icon'
 import { useAuth } from '../lib/auth'
 import { listCharges } from '../lib/blocks'
@@ -150,6 +151,8 @@ export default function Profile() {
           <div><button className="ghost" disabled={busy === 'pw'}>{busy === 'pw' ? 'বদলানো হচ্ছে…' : 'পাসওয়ার্ড বদলান'}</button></div>
         </form>
       </section>
+
+      <AppSetup />
 
       <button type="button" className="ghost logout-btn" onClick={() => void signOut()}>
         <Icon name="logout" size={18} /> লগআউট

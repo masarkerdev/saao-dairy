@@ -6,6 +6,7 @@ import { useFeedback } from '../components/Feedback'
 import ScheduleSheet, { printSizeAll, screenSizeAll } from '../components/ScheduleSheet'
 import StatusSteps from '../components/StatusSteps'
 import { useAuth } from '../lib/auth'
+import { notifyStatus } from '../lib/pwa'
 import { holidayMap, listFarmerGroups, listHolidays, listTopics, saveFarmerGroup, topicsForMonth } from '../lib/catalog'
 import type { FarmerGroup } from '../lib/catalog'
 import { mobileError } from '../lib/mobile'
@@ -323,6 +324,7 @@ export default function ScheduleEditor() {
       if (sibling) loadSibling(updated).then(setSibling).catch(() => undefined)
       setReviewNote('')
       if (to === 'submitted') setView('sheet')
+      void notifyStatus(updated.id) // সংশ্লিষ্টদের ফোনে নোটিফিকেশন
       toast(
         to === 'submitted' ? 'পুরো মাসের সূচি জমা হয়েছে। কো-এডমিন যাচাই করবেন।'
           : to === 'forwarded' ? 'পুরো মাসের সূচি উপজেলা কৃষি অফিসারের কাছে পাঠানো হয়েছে'
