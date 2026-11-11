@@ -31,7 +31,8 @@ export default function TopicPicker({ idBase, value, suggestions, readOnly, onCh
   return (
     <div className="tpick">
       <div className="tlabel">
-        কৃষক গ্রুপে আলোচ্য বিষয় <span className="muted">({'০১২৩৪৫'[chosen.length]}/৫)</span>
+        <span>কৃষক গ্রুপে আলোচ্য বিষয়</span>
+        <span className={`tcount ${chosen.length === 0 ? 'zero' : chosen.length >= 5 ? 'full' : 'some'}`}>{'০১২৩৪৫'[chosen.length]}/৫</span>
       </div>
       {chosen.length > 0 ? (
         <ol className="tchosen">

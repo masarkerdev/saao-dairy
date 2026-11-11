@@ -67,6 +67,14 @@ export async function resetPassword(id: string, password: string): Promise<strin
   return String(data ?? '')
 }
 
+// এসএএও-র ব্লকের নাম বদলানো/সংশোধন (sql/15_block_rename.sql):
+// প্রোফাইল, নিজ ব্লকের কৃষক গ্রুপ ও সব সূচিতে নতুন নাম বসে। নিজে বা এডমিন/কো-এডমিন/ডেভেলপার।
+export async function renameBlock(id: string, block: string, union?: string | null): Promise<string> {
+  const { data, error } = await supabase.rpc('rename_saao_block', { target: id, new_block: block.trim(), new_union: union?.trim() || null })
+  if (error) throw error
+  return String(data ?? block.trim())
+}
+
 // সহজে পড়া যায় এমন এলোমেলো পাসওয়ার্ড (0/O, 1/l/I বাদ)
 export function makePassword(len = 10): string {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'

@@ -67,9 +67,12 @@ export default function EntryForm(p: Props) {
     return (
       <fieldset className={'gbox' + (bad ? ' warn' : '')} key={no} id={`g-${no}`}>
         <legend>
-          <span className={'fill-dot' + (isFilled(g) ? ' ok' : '')} aria-hidden="true" />
-          গ্রুপ নং {g2(p.displayNo[no] ?? no)}
-          {g.slot && <span className="muted"> · {SLOT[g.slot]}</span>}
+          <span className={'g-pill' + (isFilled(g) ? ' ok' : '')}>
+            <span className={'fill-dot' + (isFilled(g) ? ' ok' : '')} aria-hidden="true" />
+            গ্রুপ নং {g2(p.displayNo[no] ?? no)}
+          </span>
+          {g.slot && <span className={`slot-pill s${g.slot}`}>{SLOT[g.slot]}</span>}
+          {isFilled(g) && <span className="done-tag">পূরণ হয়েছে</span>}
         </legend>
 
         {bad && <p className="err small">এই দিনে ভিজিট রাখা যাবে না: {bad}</p>}

@@ -4,6 +4,7 @@ import { Field } from '../components/AuthLayout'
 import { useFeedback } from '../components/Feedback'
 import AppSetup from '../components/AppSetup'
 import Icon, { Avatar } from '../components/Icon'
+import { renameBlock } from '../lib/admin'
 import { useAuth } from '../lib/auth'
 import { listCharges } from '../lib/blocks'
 import type { BlockCharge } from '../lib/blocks'
@@ -18,7 +19,7 @@ import { SAAO_TITLE, isSaaoProfile, roleTitle } from '../types'
 // নিজের তথ্য দেখা ও বদলানো, পাসওয়ার্ড পরিবর্তন, লগআউট
 export default function Profile() {
   const { profile, refreshProfile, signOut } = useAuth()
-  const { toast } = useFeedback()
+  const { confirm, toast } = useFeedback()
   const [locs, setLocs] = useState<Location[]>([])
   const [charges, setCharges] = useState<BlockCharge[]>([])
   const [f, setF] = useState({ full_name: '', mobile: '', block_name: '', union_name: '' })
@@ -45,15 +46,24 @@ export default function Profile() {
     e.preventDefault()
     if (!f.full_name.trim()) return toast('নাম লিখুন', 'err')
     if (mErr) return toast(mErr, 'err')
+    const newBlock = f.block_name.replace(/\s+/g, ' ').trim()
+    const oldBlock = profile!.block_name ?? ''
+    const blockChanged = isSaao && newBlock !== oldBlock
+    if (isSaao && !newBlock) return toast('ব্লকের নাম লিখুন', 'err')
+    if (blockChanged && oldBlock && !(await confirm(
+      `ব্লকের নাম "${oldBlock}" থেকে "${newBlock}" করবেন? আপনার আগের ও চলতি সব সূচি এবং "আমার গ্রুপ"-এর গ্রুপগুলোতেও নতুন নাম বসবে (অতিরিক্ত দায়িত্বের ব্লক বাদে)।`,
+      { ok: 'বদলান' },
+    ))) return
     setBusy('info')
     try {
+      if (blockChanged) await renameBlock(profile!.id, newBlock, f.union_name)
       const row: Record<string, string | null> = { full_name: f.full_name.trim(), mobile: f.mobile ? normalizeMobile(f.mobile) : null }
-      if (isSaao) { row.block_name = f.block_name.trim() || null; row.union_name = f.union_name.trim() || null }
+      if (isSaao) row.union_name = f.union_name.trim() || null
       const { data, error } = await supabase.from('profiles').update(row).eq('id', profile!.id).select('id')
       if (error) throw error
       if (!data?.length) throw new Error('সেভ করা যায়নি।')
       await refreshProfile()
-      toast('আপনার তথ্য হালনাগাদ হয়েছে')
+      toast(blockChanged ? `তথ্য হালনাগাদ হয়েছে। ব্লক এখন: ${newBlock}` : 'আপনার তথ্য হালনাগাদ হয়েছে')
     } catch (err) {
       toast(errMsg(err, 'সেভ করা যায়নি।'), 'err')
     }
@@ -96,15 +106,15 @@ export default function Profile() {
             <div className="two">
               <label className="field">
                 <span className="flabel">ব্লক</span>
-                {blocks.length ? (
-                  <select value={f.block_name} onChange={(e) => setF({ ...f, block_name: e.target.value })}>
-                    <option value="">বাছুন</option>
-                    {blocks.some((b) => b.name === f.block_name) || !f.block_name ? null : <option value={f.block_name}>{f.block_name}</option>}
-                    {blocks.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
-                  </select>
-                ) : (
-                  <span className="finput"><input value={f.block_name} onChange={(e) => setF({ ...f, block_name: e.target.value })} /></span>
-                )}
+                <span className="finput">
+                  <Icon name="map" size={16} />
+                  <input value={f.block_name} list="profile-blocks" placeholder="তালিকা থেকে বাছুন বা লিখুন"
+                    onChange={(e) => setF({ ...f, block_name: e.target.value })} />
+                </span>
+                <datalist id="profile-blocks">{blocks.map((b) => <option key={b.id} value={b.name} />)}</datalist>
+                {f.block_name.trim() !== (profile.block_name ?? '') && f.block_name.trim()
+                  ? <span className="fhint warn-text">সেভ করলে আগের সব সূচি ও গ্রুপেও নতুন নাম বসবে</span>
+                  : <span className="fhint">বানান ভুল থাকলে ঠিক করে সেভ করুন</span>}
               </label>
               <label className="field">
                 <span className="flabel">ইউনিয়ন</span>

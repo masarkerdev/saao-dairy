@@ -467,6 +467,29 @@ async function rpc(name: string, args: Row) {
       return delay({ data: null, error: fail('কর্মকর্তাদের পাসওয়ার্ড শুধু ডেভেলপার রিসেট করতে পারেন') })
     return delay({ data: v.full_name, error: null })
   }
+  if (name === 'rename_saao_block') {
+    // sql/15-এর মতো
+    const nb = String(args.new_block ?? '').trim()
+    if (!nb) return delay({ data: null, error: fail('ব্লকের নাম লিখুন') })
+    const v = db.profiles.find((p) => p.id === args.target)
+    if (!v) return delay({ data: null, error: fail('ইউজার পাওয়া যায়নি') })
+    if (v.role !== 'saao') return delay({ data: null, error: fail('শুধু উপসহকারী কৃষি কর্মকর্তার ব্লক বদলানো যায়') })
+    if (!(v.id === uid || ['admin', 'coadmin', 'developer'].includes(role() ?? ''))) return delay({ data: null, error: fail('ব্লক বদলানোর অনুমতি নেই') })
+    if (db.block_charges.some((c) => c.saao_id === v.id && c.block_name === nb))
+      return delay({ data: null, error: fail(`${nb} ব্লক এই কর্মকর্তার অতিরিক্ত দায়িত্বে আছে। আগে অতিরিক্ত দায়িত্বটি তুলে নিন।`) })
+    const old = String(v.block_name ?? '')
+    v.block_name = nb
+    if (String(args.new_union ?? '').trim()) v.union_name = String(args.new_union).trim()
+    if (old !== nb) {
+      for (const g of db.farmer_groups) if (g.saao_id === v.id && ['', old].includes(String(g.block_name ?? ''))) {
+        g.block_name = nb
+        g.address = String(g.address ?? '').split(`ব্লক: ${old}`).join(`ব্লক: ${nb}`)
+      }
+      for (const s of db.schedules) if (s.saao_id === v.id && !s.extra_charge && s.block_name === old) s.block_name = nb
+    }
+    persist()
+    return delay({ data: nb, error: null })
+  }
   if (name !== 'delete_user') return delay({ data: null, error: fail('অজানা ফাংশন') })
   if (!developer()) return delay({ data: null, error: fail('ইউজার মোছার অনুমতি শুধু ডেভেলপারের') })
   const t = args.target as string

@@ -6,7 +6,7 @@ import { addCharge, listCharges, removeCharge } from '../lib/blocks'
 import type { BlockCharge } from '../lib/blocks'
 import { listLocations } from '../lib/catalog'
 import { fmtDayMonth } from '../lib/period'
-import { deleteUser, listProfiles, makePassword, resetPassword, setActive, setPost } from '../lib/admin'
+import { deleteUser, listProfiles, makePassword, renameBlock, resetPassword, setActive, setPost } from '../lib/admin'
 import type { UserFilter } from '../lib/admin'
 import { bn } from '../lib/period'
 import { errMsg } from '../lib/schedules'
@@ -41,6 +41,8 @@ export default function Admin() {
   const [pw, setPw] = useState('')
   const [pwDone, setPwDone] = useState<{ id: string; pw: string } | null>(null)
   const [cf, setCf] = useState({ block: '', from: '', to: '' })
+  const [blkFor, setBlkFor] = useState<string | null>(null)
+  const [blk, setBlk] = useState('')
 
   useEffect(() => {
     listCharges().then(setCharges).catch(() => setCharges([]))
@@ -147,6 +149,15 @@ export default function Admin() {
     setBusyId(null)
   }
 
+  async function doRename(p: Profile) {
+    const nb = blk.replace(/\s+/g, ' ').trim()
+    if (!nb) return toast('ব্লকের নাম লিখুন', 'err')
+    if (nb === (p.block_name ?? '')) { setBlkFor(null); return }
+    if (!(await confirm(`${p.full_name}-এর ব্লক "${p.block_name ?? '—'}" থেকে "${nb}" করবেন? তাঁর আগের ও চলতি সব সূচি এবং কৃষক গ্রুপেও নতুন নাম বসবে।`, { ok: 'বদলান' }))) return
+    await run(p, async () => { await renameBlock(p.id, nb) }, { block_name: nb }, `${p.full_name}-এর ব্লক এখন: ${nb}`)
+    setBlkFor(null)
+  }
+
   async function copyPw(text: string) {
     try { await navigator.clipboard.writeText(text); toast('কপি হয়েছে') } catch { toast('কপি করা যায়নি, হাতে লিখে নিন', 'err') }
   }
@@ -231,6 +242,7 @@ export default function Admin() {
 
       {shown && shown.length > 0 && (
         <div className="ucards">
+          <datalist id="admin-blocks">{allBlocks.map((b) => <option key={b} value={b} />)}</datalist>
           {shown.map((p) => {
             const self = p.id === me?.id
             const can = canManage(me, p)
@@ -267,6 +279,22 @@ export default function Admin() {
                     <div className="row">
                       <button type="button" className="sm" disabled={busy} onClick={() => void doReset(p)}>রিসেট করুন</button>
                       <button type="button" className="ghost sm" onClick={() => setPwFor(null)}>বাতিল</button>
+                    </div>
+                  </div>
+                )}
+                {can && saao && blkFor === p.id && (
+                  <div className="pw-form">
+                    <label className="field">
+                      <span className="flabel">ব্লকের সঠিক নাম</span>
+                      <span className="finput">
+                        <Icon name="map" size={16} />
+                        <input value={blk} list="admin-blocks" onChange={(e) => setBlk(e.target.value)} aria-label="ব্লকের নাম" autoFocus />
+                      </span>
+                      <span className="fhint">তালিকা থেকে বাছুন বা বানান ঠিক করে লিখুন। আগের সব সূচি ও কৃষক গ্রুপেও নতুন নাম বসবে।</span>
+                    </label>
+                    <div className="row">
+                      <button type="button" className="sm" disabled={busy} onClick={() => void doRename(p)}>সেভ করুন</button>
+                      <button type="button" className="ghost sm" onClick={() => setBlkFor(null)}>বাতিল</button>
                     </div>
                   </div>
                 )}
@@ -335,6 +363,12 @@ export default function Admin() {
                       </>
                     ) : (
                       <button type="button" className="ghost sm danger-text" disabled={busy} onClick={() => void deactivate(p)}>নিষ্ক্রিয় করুন</button>
+                    )}
+                    {saao && (
+                      <button type="button" className="ghost sm blk-btn" disabled={busy}
+                        onClick={() => { setBlkFor(blkFor === p.id ? null : p.id); setBlk(p.block_name ?? '') }}>
+                        <Icon name="map" size={14} /> ব্লক সংশোধন
+                      </button>
                     )}
                     <button type="button" className="ghost sm pw-btn" disabled={busy}
                       onClick={() => { setPwFor(pwFor === p.id ? null : p.id); setPw(makePassword()); setPwDone(null) }}>
