@@ -11,7 +11,22 @@ export default async function handler(req: Req, res: Res) {
     const { data: u } = await db.auth.getUser(token)
     const me = u?.user?.id
     if (!me) return res.status(401).json({ error: 'লগইন করা নেই' })
-    const body = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {}) as { schedule_id?: string }
+    const body = (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {}) as { schedule_id?: string; notice_id?: string }
+
+    // নতুন নোটিশ: যিনি দিয়েছেন তিনিই জানাচ্ছেন কি না, আর ১০ মিনিটের মধ্যে কি না
+    if (body.notice_id) {
+      const { data: n } = await db.from('notices').select('id,title,body,audience,created_by,created_at').eq('id', body.notice_id).single()
+      if (!n || n.created_by !== me || Date.now() - Date.parse(n.created_at) > 10 * 60 * 1000) return res.status(200).json({ sent: 0 })
+      let q = db.from('profiles').select('id,role').eq('active', true)
+      if (n.audience === 'saao') q = q.eq('role', 'saao')
+      if (n.audience === 'officers') q = q.in('role', ['admin', 'coadmin'])
+      const { data: people } = await q
+      const text = String(n.body ?? '')
+      const r = await sendTo(db, (people ?? []).map((x) => x.id).filter((x) => x !== me),
+        { title: `নোটিশ: ${n.title}`, body: text.length > 140 ? `${text.slice(0, 140)}…` : text || 'নোটিশ বোর্ডে দেখুন', url: '/notices', tag: `notice-${n.id}` }, siteOf(req))
+      return res.status(200).json({ sent: r.sent })
+    }
+
     if (!body.schedule_id) return res.status(400).json({ error: 'schedule_id নেই' })
 
     // এই ইউজারের করা সর্বশেষ সিদ্ধান্ত (৫ মিনিটের মধ্যে)

@@ -5,6 +5,8 @@ import Admin from './pages/Admin'
 import Groups from './pages/Groups'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
+import Notices from './pages/Notices'
+import Stats from './pages/Stats'
 import Login from './pages/Login'
 import NewSchedule from './pages/NewSchedule'
 import ScheduleEditor from './pages/ScheduleEditor'
@@ -44,6 +46,8 @@ export default function App() {
       <Route path="/admin" element={<RequireAuth roles={['coadmin', 'admin', 'developer']}><Admin /></RequireAuth>} />
       <Route path="/groups" element={<RequireAuth><Groups /></RequireAuth>} />
       <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+      <Route path="/notices" element={<RequireAuth><Notices /></RequireAuth>} />
+      <Route path="/stats" element={<RequireAuth roles={['coadmin', 'admin', 'developer']}><Stats /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth roles={['coadmin', 'admin', 'developer']}><Settings /></RequireAuth>} />
       <Route path="*" element={<div className="center">পেজ পাওয়া যায়নি</div>} />
     </Routes>

@@ -15,15 +15,16 @@ export default function Shell({ children }: { children: ReactNode }) {
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   if (!profile) return <>{children}</>
   const rev = isReviewer(profile.role)
-  const links: [string, string, string][] = isDeveloper(profile.role)
-    ? [['/', 'ইউজার', 'groups'], ['/review', 'সব সূচি', 'review'], ['/settings', 'সেটিংস', 'settings'], ['/profile', 'প্রোফাইল', 'user']]
+  // উপরের মেনু (ডেস্কটপ) সব দেখায়; নিচের মেনু (মোবাইল) সর্বোচ্চ ৫টি, বাকিগুলো হোম/প্রোফাইল থেকে
+  const links: [string, string, string, boolean][] = isDeveloper(profile.role)
+    ? [['/', 'ইউজার', 'groups', true], ['/review', 'সব সূচি', 'review', true], ['/stats', 'পরিসংখ্যান', 'chart', true], ['/notices', 'নোটিশ', 'bell', true], ['/settings', 'সেটিংস', 'settings', false], ['/profile', 'প্রোফাইল', 'user', true]]
     : rev
-    ? [['/', 'হোম', 'home'], ['/review', 'পর্যালোচনা', 'review'], ['/admin', 'ইউজার', 'groups'], ['/settings', 'সেটিংস', 'settings'], ['/profile', 'প্রোফাইল', 'user']]
-    : [['/', 'হোম', 'home'], ['/groups', 'আমার গ্রুপ', 'groups'], ['/schedules/new', 'নতুন সূচি', 'calendarPlus'], ['/profile', 'প্রোফাইল', 'user']]
+    ? [['/', 'হোম', 'home', true], ['/review', 'পর্যালোচনা', 'review', true], ['/stats', 'পরিসংখ্যান', 'chart', true], ['/notices', 'নোটিশ', 'bell', true], ['/admin', 'ইউজার', 'groups', false], ['/settings', 'সেটিংস', 'settings', false], ['/profile', 'প্রোফাইল', 'user', true]]
+    : [['/', 'হোম', 'home', true], ['/groups', 'আমার গ্রুপ', 'groups', true], ['/schedules/new', 'নতুন সূচি', 'calendarPlus', true], ['/notices', 'নোটিশ', 'bell', true], ['/profile', 'প্রোফাইল', 'user', true]]
 
   const nav = (cls: string) => (
     <nav className={cls} aria-label="মেনু">
-      {links.map(([to, label, icon]) => (
+      {links.filter((l) => !cls.startsWith('tabbar') || l[3]).map(([to, label, icon]) => (
         <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'on' : '')}>
           <Icon name={icon} size={cls.startsWith('tabbar') ? 22 : 18} />
           <span>{label}</span>

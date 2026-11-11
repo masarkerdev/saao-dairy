@@ -167,6 +167,10 @@ export function seed(): Record<string, Row[]> {
   return {
     profiles, schedules, schedule_groups, schedule_day_notes, schedule_events, schedule_entries: [],
     farmer_groups, block_charges, reminder_seen: [],
+    notices: [
+      { id: 'n_1', title: 'নভেম্বরের মাসিক সূচি ২৯ অক্টোবরের মধ্যে জমা দিন', body: 'আমন কাটা ও রবি মৌসুমের প্রস্তুতি বিষয়ে প্রতিটি গ্রুপে আলোচনা রাখবেন। আলুর বীজ শোধন ও সরিষার উন্নত জাত বিষয়ে বিশেষ জোর দিন।', audience: 'all', pinned: true, expires_on: '2026-11-30', created_by: 'u_uao', created_at: '2026-10-24T05:00:00.000Z', updated_at: '2026-10-24T05:00:00.000Z' },
+      { id: 'n_2', title: 'কৃষক মাঠ দিবসের প্রস্তুতি সভা', body: 'বৃহস্পতিবার সকাল ১০টায় উপজেলা কৃষি অফিসে সব উপসহকারী কৃষি কর্মকর্তার উপস্থিতি কাম্য।', audience: 'saao', pinned: false, expires_on: null, created_by: 'u_aao', created_at: '2026-10-26T08:30:00.000Z', updated_at: '2026-10-26T08:30:00.000Z' },
+    ],
     holidays: [{ holiday_date: DEMO_HOLIDAY, name: 'নমুনা সরকারি ছুটি', created_at: '2026-10-24T04:00:00.000Z' }],
     topic_suggestions: TOPICS.map(([topic, months], i) => ({ id: i + 1, topic, months, sort: i + 1, active: true })),
     locations: [

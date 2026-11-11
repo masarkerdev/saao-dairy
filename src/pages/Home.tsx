@@ -17,6 +17,7 @@ import type { Month } from '../lib/period'
 import { GROUP_COUNT, STATUS_SHORT, countFilled, deleteSchedule, errMsg, groupByMonth, listMySchedules } from '../lib/schedules'
 import type { MonthGroup, Schedule } from '../lib/schedules'
 import Admin from './Admin'
+import { PinnedNotices } from './Notices'
 import { isDeveloper, isReviewer, roleTitle } from '../types'
 
 function greet() {
@@ -117,6 +118,8 @@ function SaaoHome() {
           </div>
         </div>
       </section>
+
+      <PinnedNotices />
 
       {returned.map((g) => (
         <Link key={g.key} to={`/schedules/${g.main.id}`} className="card note-box linkcard alert-card">
@@ -286,6 +289,8 @@ function ReviewerHome() {
         </div>
       </section>
 
+      <PinnedNotices />
+
       <section className="card">
         <div className="row between">
           <button type="button" className="ghost sm" aria-label="আগের মাস" onClick={() => setMonth(prevMonth(month))}><Icon name="left" size={18} /></button>
@@ -344,6 +349,8 @@ function ReviewerHome() {
       <div className="quick">
         <Link to="/review" className="card linkcard"><Icon name="review" className="qi" /><strong>সূচি পর্যালোচনা</strong><span className="muted small">সব মাসের জমা পড়া সূচি</span></Link>
         <Link to="/admin" className="card linkcard"><Icon name="groups" className="qi" /><strong>ইউজার</strong><span className="muted small">{newUsers ? `${bn(newUsers)}জন নতুন সাইনআপ সক্রিয়ের অপেক্ষায়` : 'সাইনআপ সক্রিয় করা, ভূমিকা দেওয়া'}</span></Link>
+        <Link to="/stats" className="card linkcard"><Icon name="chart" className="qi" /><strong>পরিসংখ্যান</strong><span className="muted small">সময়মতো জমা, আলোচ্য বিষয়, ইউনিয়নভিত্তিক ভিজিট</span></Link>
+        <Link to="/notices" className="card linkcard"><Icon name="bell" className="qi" /><strong>নোটিশ বোর্ড</strong><span className="muted small">সবাইকে নির্দেশনা ও খবর দিন</span></Link>
         <Link to="/settings" className="card linkcard"><Icon name="settings" className="qi" /><strong>সেটিংস</strong><span className="muted small">সরকারি ছুটি, আলোচ্য বিষয়, ব্লক</span></Link>
       </div>
     </div>

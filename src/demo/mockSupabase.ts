@@ -8,7 +8,7 @@ type DB = Record<string, Row[]>
 type Err = { message: string; code?: string }
 type Res = { data: any; error: Err | null; count?: number | null }
 
-const KEY = 'saao-demo-db-v8'
+const KEY = 'saao-demo-db-v9'
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
 
 function load(): DB {
@@ -85,6 +85,7 @@ function canRead(table: string, r: Row): boolean {
   switch (table) {
     case 'profiles': return r.id === uid || reviewer() || developer() || ['admin', 'coadmin'].includes(r.role)
     case 'reminder_seen': return r.user_id === uid
+    case 'notices': return active() && (reviewer() || r.audience === 'all' || (r.audience === 'saao' && role() === 'saao'))
     case 'schedules': return r.saao_id === uid || reviewer()
     case 'farmer_groups': return r.saao_id === uid || reviewer()
     case 'block_charges': return r.saao_id === uid || reviewer()
@@ -103,6 +104,7 @@ function canWrite(table: string, r: Row): boolean {
   switch (table) {
     case 'holidays': case 'locations': case 'topic_suggestions': case 'app_settings': case 'block_charges': return reviewer()
     case 'reminder_seen': return r.user_id === uid
+    case 'notices': return reviewer() && (!r.created_by || r.created_by === uid || ['admin', 'developer'].includes(role() ?? ''))
     case 'farmer_groups': return r.saao_id === uid && active()
     case 'schedule_groups': case 'schedule_day_notes': return ownEditable(r.schedule_id)
     case 'schedules': return r.saao_id === uid && r.status === 'draft' && active() // শুধু মোছার জন্য
@@ -362,7 +364,7 @@ class Query implements PromiseLike<Res> {
           Object.assign(old, row)
         } else {
           if (!canWrite(t, old)) continue
-          const next = { ...old, ...this.payload }
+          const next = { ...old, ...this.payload, ...(t === 'notices' ? { created_by: old.created_by, created_at: old.created_at, updated_at: new Date().toISOString() } : {}) }
           if (!canWrite(t, next)) return { data: null, error: RLS }
           Object.assign(old, next)
         }
@@ -413,6 +415,7 @@ class Query implements PromiseLike<Res> {
         if (t === 'farmer_groups') Object.assign(r, { active: r.active ?? true, sort: r.sort ?? 0, created_at: new Date().toISOString(),
           block_name: r.block_name || ((db.profiles.find((p) => p.id === r.saao_id)?.block_name as string | null) ?? '') })
         if (t === 'block_charges') Object.assign(r, { id: newId('bc_'), created_by: uid, created_at: new Date().toISOString() })
+        if (t === 'notices') { const now = new Date().toISOString(); Object.assign(r, { id: newId('n_'), title: String(r.title ?? '').trim(), body: String(r.body ?? '').trim(), pinned: !!r.pinned, created_at: now, updated_at: now }) }
         if (t === 'block_charges' && db.block_charges.some((c) => c.saao_id === r.saao_id && c.block_name === r.block_name)) return { data: null, error: DUP }
         if (t === 'topic_suggestions') Object.assign(r, { active: true, months: r.months ?? [] })
         if (t === 'schedule_groups') r.topics = r.topics ?? ['', '', '', '', '']

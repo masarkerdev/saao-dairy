@@ -152,6 +152,15 @@ export async function loadReminders(profile: Profile): Promise<Reminder[]> {
     }
   }
 
+  // নতুন নোটিশ (গত ৩০ দিন, নিজের দেওয়া বাদে)
+  const since = new Date(Date.now() - 30 * 86400000).toISOString()
+  const { data: nts } = await supabase.from('notices').select('id,title,body,created_by,created_at,expires_on')
+    .gte('created_at', since).order('created_at', { ascending: false })
+  for (const n of (nts ?? []) as { id: string; title: string; body: string; created_by: string | null; expires_on: string | null }[]) {
+    if (n.created_by === profile.id || (n.expires_on && n.expires_on < today)) continue
+    out.push({ id: `notice-${n.id}`, level: 'info', to: '/notices', text: `নোটিশ: ${n.title}`, sub: n.body ? (n.body.length > 90 ? `${n.body.slice(0, 90)}…` : n.body) : undefined })
+  }
+
   const seen = await listSeen(profile.id).catch(() => new Set<string>())
   const rank: Record<Level, number> = { urgent: 0, soon: 1, good: 2, info: 3 }
   return out.filter((r) => !seen.has(r.id)).sort((a, b) => rank[a.level] - rank[b.level])
